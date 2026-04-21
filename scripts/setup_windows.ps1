@@ -8,10 +8,13 @@ function Get-NodeCandidatePaths {
         $paths += $command.Source
     }
 
-    $paths += @(
-        (Join-Path $env:ProgramFiles "nodejs\node.exe"),
-        (Join-Path $env:LOCALAPPDATA "Programs\nodejs\node.exe")
-    )
+    if ($env:ProgramFiles) {
+        $paths += Join-Path $env:ProgramFiles "nodejs\node.exe"
+    }
+
+    if ($env:LOCALAPPDATA) {
+        $paths += Join-Path $env:LOCALAPPDATA "Programs\nodejs\node.exe"
+    }
 
     return $paths | Where-Object { $_ } | Select-Object -Unique
 }
@@ -58,12 +61,18 @@ function Get-FfmpegCandidatePaths {
         $paths += $command.Source
     }
 
-    $paths += @(
-        (Join-Path $env:ProgramFiles "ffmpeg\bin\$BinaryName.exe"),
-        (Join-Path $env:ProgramFiles "ffmpeg\$BinaryName.exe"),
-        (Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\$BinaryName.exe"),
-        (Join-Path $env:ChocolateyInstall "bin\$BinaryName.exe")
-    )
+    if ($env:ProgramFiles) {
+        $paths += Join-Path $env:ProgramFiles "ffmpeg\bin\$BinaryName.exe"
+        $paths += Join-Path $env:ProgramFiles "ffmpeg\$BinaryName.exe"
+    }
+
+    if ($env:LOCALAPPDATA) {
+        $paths += Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\$BinaryName.exe"
+    }
+
+    if ($env:ChocolateyInstall) {
+        $paths += Join-Path $env:ChocolateyInstall "bin\$BinaryName.exe"
+    }
 
     return $paths | Where-Object { $_ } | Select-Object -Unique
 }
@@ -149,5 +158,5 @@ Write-Host ""
 Write-Host "Proximo passo:"
 Write-Host "1. Ative o ambiente virtual"
 Write-Host "2. Instale os pacotes Python com python -m pip install -r requirements.txt"
-Write-Host "3. Execute .\scripts\build_windows.ps1 para gerar um pacote com ffmpeg/ffprobe inclusos"
+Write-Host "3. Execute .\scripts\build_windows.ps1 -ReleaseLabel sprint-2 para gerar um pacote com ffmpeg/ffprobe inclusos"
 Write-Host "4. Ou execute python main.py para rodar localmente"

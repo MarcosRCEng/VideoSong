@@ -142,16 +142,27 @@ python -m pip install -r requirements-dev.txt
 Gerar o executavel localmente:
 
 ```powershell
-.\scripts\build_windows.ps1
+.\scripts\build_windows.ps1 -ReleaseLabel sprint-2
 ```
 
-Saida esperada: `dist\VideoSong.exe`
+Saida esperada:
+
+- `dist\VideoSong.exe`
+- `dist\releases\VideoSong-sprint-2.exe`
 
 Observacoes:
 
-- o script limpa `build\` e `dist\` antes de gerar um executavel novo, para evitar residuos de empacotamentos antigos
+- o script usa uma pasta temporaria isolada do Windows para o PyInstaller e depois publica o resultado final em `dist\`, evitando residuos travados de builds anteriores
 - o build exige `Node.js`, `ffmpeg` e `ffprobe` utilizaveis na maquina de empacotamento
 - quando presentes, `ffmpeg` e `ffprobe` sao embutidos no pacote final para evitar dependencia extra na maquina de destino
+- use um `ReleaseLabel` por sprint fechada, como `sprint-2`, para manter um executavel versionado por marco do projeto
+
+## Logs Locais
+
+Erros relevantes do app passam a ser registrados em arquivo local para diagnostico simples:
+
+- execucao pelo codigo-fonte: `logs\videosong-errors.log`
+- execucao pelo `.exe`: `logs\videosong-errors.log` ao lado do executavel gerado
 
 Executar o binario gerado:
 
