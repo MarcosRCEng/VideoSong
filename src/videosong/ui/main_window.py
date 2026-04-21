@@ -1,6 +1,8 @@
 import tkinter as tk
+from types import TracebackType
 from tkinter import filedialog, ttk
 
+from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
 
 
@@ -61,6 +63,7 @@ class MainWindow:
         self.root.title("VideoSong")
         self.root.geometry("700x430")
         self.root.minsize(600, 380)
+        self.root.report_callback_exception = self._handle_tk_exception
 
         self.url_var = tk.StringVar()
         self.mode_var = tk.StringVar(value="video")
@@ -158,6 +161,19 @@ class MainWindow:
         }
         self.status_var.set(message)
         self.status_label.configure(fg=colors.get(status_kind, colors["neutral"]))
+
+    def _handle_tk_exception(
+        self,
+        exc_type: type[BaseException],
+        error: BaseException,
+        traceback_obj: TracebackType | None,
+    ) -> None:
+        error.__traceback__ = traceback_obj
+        log_file = write_error_log("Falha nao tratada na interface.", error)
+        self._set_status(
+            "error",
+            f"Erro inesperado na interface. Consulte o log local em {log_file}.",
+        )
 
     def _handle_download(self) -> None:
         url = self.url_var.get().strip()

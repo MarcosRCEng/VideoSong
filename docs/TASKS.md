@@ -105,10 +105,10 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: ajustar o fluxo para salvar video final em `.mp4` e somente audio final em `.mp3`
   test: validar o comportamento do servico de download e atualizar os testes automatizados
   commit: aguardando autorizacao
-- [ ] Versionar o executavel `.exe` a cada sprint fechada
-  dev: definir uma convencao para gerar e registrar um `.exe` versionado a cada sprint concluida como marco de evolucao do projeto
-  test: validar a presenca do artefato versionado e atualizar a documentacao do fluxo de release
-  commit: pendente
+- [x] Versionar o executavel `.exe` a cada sprint fechada
+  dev: `scripts/build_windows.ps1` agora exige `-ReleaseLabel` e, alem de regenerar `dist\VideoSong.exe`, copia um artefato versionado para `dist\releases\VideoSong-<release>.exe`; `README.md` documenta o fluxo minimo de release por sprint
+  test: validar `python -m pytest -q` e `.\scripts\build_windows.ps1 -ReleaseLabel sprint-2`, confirmando a presenca de `dist\releases\VideoSong-sprint-2.exe`
+  commit: realizado na branch `codex/task-logs-erro-e-build-final-exe`
 - [x] Configurar runtime JavaScript compativel com `yt-dlp` para URLs do YouTube
   dev: `download_service.py` passou a validar se `node` esta realmente executavel antes de habilitar `js_runtimes`; quando a URL e do YouTube e nao ha runtime suportado, o app interrompe com orientacao objetiva em vez de deixar o aviso interno do `yt-dlp`; `scripts/setup_windows.ps1` foi adicionado para instalar/verificar `Node.js` LTS no Windows e o `README.md` passou a documentar esse pre-requisito fora do `requirements.txt`
   test: `.\.venv\Scripts\python.exe -m pytest -q`, checagem local confirmando que o `node.exe` encontrado em `WindowsApps` nao esta utilizavel como runtime para o `yt-dlp` e validacao de sintaxe do script `.\scripts\setup_windows.ps1`
@@ -117,3 +117,7 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: `download_service.py` passou a localizar `ffmpeg` e `ffprobe` no ambiente e tambem nos binarios empacotados pelo PyInstaller; `scripts/setup_windows.ps1` agora instala/verifica `Node.js`, `ffmpeg` e `ffprobe`; `scripts/build_windows.ps1` passou a bloquear build incompleto e `VideoSong.spec` embute `ffmpeg/ffprobe` no pacote final quando encontrados
   test: validacao automatizada do Python e validacao de sintaxe/execucao dos scripts de setup e build no Windows
   commit: pendente
+- [x] Adicionar gravacao simples de logs de erro para diagnostico local
+  dev: `src/videosong/services/error_log.py` adicionado para registrar erros em `logs\videosong-errors.log`; falhas de download relevantes e excecoes nao tratadas da aplicacao/interface agora escrevem no log local e devolvem referencia objetiva ao arquivo
+  test: validar `python -m pytest -q` cobrindo gravacao do log e mensagens de erro com caminho do arquivo
+  commit: realizado na branch `codex/task-logs-erro-e-build-final-exe`

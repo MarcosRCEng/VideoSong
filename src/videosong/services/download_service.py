@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 
 from yt_dlp import DownloadError, YoutubeDL
 
+from src.videosong.services.error_log import write_error_log
+
 
 def is_youtube_url(url: str) -> bool:
     hostname = urlparse(url.strip()).hostname or ""
@@ -209,10 +211,13 @@ def start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
         with YoutubeDL(build_download_options(clean_mode, clean_destination)) as downloader:
             downloader.download([clean_url])
     except DownloadError as error:
-        return ("error", f"Erro ao baixar {clean_mode}: {error}")
+        log_file = write_error_log("Falha de download retornada pelo yt-dlp.", error)
+        return ("error", f"Erro ao baixar {clean_mode}: {error} Consulte o log em {log_file}.")
     except OSError as error:
-        return ("error", f"Erro ao preparar a pasta de destino: {error}")
+        log_file = write_error_log("Falha ao preparar a pasta de destino.", error)
+        return ("error", f"Erro ao preparar a pasta de destino: {error} Consulte o log em {log_file}.")
     except Exception as error:
-        return ("error", f"Erro inesperado durante o download: {error}")
+        log_file = write_error_log("Falha inesperada durante o download.", error)
+        return ("error", f"Erro inesperado durante o download: {error} Consulte o log em {log_file}.")
 
     return ("success", f"Download concluido com sucesso em {clean_destination}.")

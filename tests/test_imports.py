@@ -1,7 +1,10 @@
+import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.videosong.app import run
 from src.videosong.services.download_service import (
+    DownloadError,
     build_download_options,
     find_ffmpeg_location,
     find_js_runtime_options,
@@ -9,6 +12,7 @@ from src.videosong.services.download_service import (
     find_ffmpeg_binary_path,
     start_download,
 )
+from src.videosong.services.error_log import get_log_file_path, write_error_log
 from src.videosong.ui import main_window
 from src.videosong.ui.main_window import (
     MainWindow,
@@ -40,6 +44,26 @@ class FakeLabel:
 
 def test_run_symbol_exists() -> None:
     assert callable(run)
+
+
+def test_get_log_file_path_points_to_project_logs_directory() -> None:
+    log_file = get_log_file_path()
+
+    assert log_file.name == "videosong-errors.log"
+    assert log_file.parent.name == "logs"
+
+
+def test_write_error_log_appends_context_and_error(monkeypatch) -> None:
+    log_file = Path(f".tmp/test-videosong-errors-{os.getpid()}.log")
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.videosong.services.error_log.get_log_file_path", lambda: log_file)
+
+    saved_path = write_error_log("Falha de teste", RuntimeError("erro simulado"))
+
+    assert saved_path == log_file
+    content = log_file.read_text(encoding="utf-8")
+    assert "Falha de teste" in content
+    assert "erro simulado" in content
 
 
 def test_build_flow_summary_requires_url_first() -> None:
@@ -323,10 +347,28 @@ def test_start_download_returns_error_when_ytdlp_fails(mock_ytdl: MagicMock, _mo
 
     with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
         with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
-            status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+            with patch("src.videosong.services.download_service.write_error_log", return_value=Path("logs/videosong-errors.log")):
+                status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "error"
     assert "falha simulada" in message
+    assert "videosong-errors.log" in message.replace("\\", "/")
+
+
+@patch("src.videosong.services.download_service.Path.mkdir")
+@patch("src.videosong.services.download_service.YoutubeDL")
+def test_start_download_logs_download_error(mock_ytdl: MagicMock, _mock_mkdir: MagicMock) -> None:
+    mock_ytdl.return_value.__enter__.side_effect = DownloadError("erro do yt-dlp")
+
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+            with patch("src.videosong.services.download_service.write_error_log", return_value=Path("logs/videosong-errors.log")) as mock_log:
+                status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+
+    assert status_kind == "error"
+    assert "erro do yt-dlp" in message
+    assert "videosong-errors.log" in message.replace("\\", "/")
+    mock_log.assert_called_once()
 
 
 def test_start_download_returns_guidance_for_youtube_without_js_runtime() -> None:

@@ -1,3 +1,8 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$ReleaseLabel
+)
+
 $ErrorActionPreference = "Stop"
 
 function Get-RequiredBinaryPath {
@@ -6,29 +11,58 @@ function Get-RequiredBinaryPath {
         [string]$BinaryName
     )
 
+    $candidates = @()
     $command = Get-Command $BinaryName -ErrorAction SilentlyContinue
-    if (-not $command -or -not $command.Source) {
-        throw "$BinaryName nao encontrado. Execute .\scripts\setup_windows.ps1 antes de empacotar."
+    if ($command -and $command.Source) {
+        $candidates += $command.Source
     }
 
-    try {
-        $null = & $command.Source -version 2>$null
-    }
-    catch {
-        throw "$BinaryName foi encontrado, mas nao esta utilizavel. Execute .\scripts\setup_windows.ps1 antes de empacotar."
+    if ($env:ProgramFiles) {
+        $candidates += Join-Path $env:ProgramFiles "ffmpeg\bin\$BinaryName.exe"
+        $candidates += Join-Path $env:ProgramFiles "ffmpeg\$BinaryName.exe"
     }
 
-    return $command.Source
+    if ($env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\$BinaryName.exe"
+    }
+
+    if ($env:ChocolateyInstall) {
+        $candidates += Join-Path $env:ChocolateyInstall "bin\$BinaryName.exe"
+    }
+
+    foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+        if (-not (Test-Path $candidate)) {
+            continue
+        }
+
+        try {
+            $null = & $candidate -version 2>$null
+            return $candidate
+        }
+        catch {
+            continue
+        }
+    }
+
+    throw "$BinaryName nao encontrado. Execute .\scripts\setup_windows.ps1 antes de empacotar."
 }
 
 $python = Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"
 $python = [System.IO.Path]::GetFullPath($python)
 $spec = Join-Path $PSScriptRoot "..\VideoSong.spec"
 $spec = [System.IO.Path]::GetFullPath($spec)
-$buildPath = Join-Path $PSScriptRoot "..\build"
-$buildPath = [System.IO.Path]::GetFullPath($buildPath)
 $distPath = Join-Path $PSScriptRoot "..\dist"
 $distPath = [System.IO.Path]::GetFullPath($distPath)
+$tmpPath = Join-Path ([System.IO.Path]::GetTempPath()) "VideoSong-Build"
+$buildRunId = "{0}-{1}" -f (Get-Date -Format "yyyyMMdd-HHmmss"), $PID
+$stagingRootPath = Join-Path $tmpPath "pyinstaller\$buildRunId"
+$stagingBuildPath = Join-Path $stagingRootPath "build"
+$stagingDistPath = Join-Path $stagingRootPath "dist"
+$releasePath = Join-Path $distPath "releases"
+$releaseFileName = "VideoSong-$ReleaseLabel.exe"
+$releaseFilePath = Join-Path $releasePath $releaseFileName
+$builtExePath = Join-Path $distPath "VideoSong.exe"
+$stagedExePath = Join-Path $stagingDistPath "VideoSong.exe"
 
 if (-not (Test-Path $python)) {
     throw "Ambiente virtual nao encontrado em .venv. Crie o ambiente e instale as dependencias antes de empacotar."
@@ -49,15 +83,29 @@ $ffprobePath = Get-RequiredBinaryPath -BinaryName "ffprobe"
 $env:VIDEOSONG_FFMPEG_PATH = $ffmpegPath
 $env:VIDEOSONG_FFPROBE_PATH = $ffprobePath
 
-if (Test-Path $buildPath) {
-    Remove-Item -LiteralPath $buildPath -Recurse -Force
-}
-
-if (Test-Path $distPath) {
-    Remove-Item -LiteralPath $distPath -Recurse -Force
-}
+New-Item -ItemType Directory -Path $stagingRootPath -Force | Out-Null
+New-Item -ItemType Directory -Path $stagingBuildPath -Force | Out-Null
+New-Item -ItemType Directory -Path $stagingDistPath -Force | Out-Null
+New-Item -ItemType Directory -Path $distPath -Force | Out-Null
 
 & $python -m PyInstaller `
     --noconfirm `
     --clean `
+    --distpath $stagingDistPath `
+    --workpath $stagingBuildPath `
     $spec
+
+if ($LASTEXITCODE -ne 0) {
+    throw "PyInstaller falhou com codigo $LASTEXITCODE. O executavel nao sera publicado em dist\\."
+}
+
+if (-not (Test-Path $stagedExePath)) {
+    throw "Build concluido sem gerar o executavel em staging. Revise a configuracao do PyInstaller."
+}
+
+New-Item -ItemType Directory -Path $releasePath -Force | Out-Null
+Copy-Item -LiteralPath $stagedExePath -Destination $builtExePath -Force
+Copy-Item -LiteralPath $stagedExePath -Destination $releaseFilePath -Force
+
+Write-Host "Artefato principal: $builtExePath"
+Write-Host "Artefato versionado: $releaseFilePath"
