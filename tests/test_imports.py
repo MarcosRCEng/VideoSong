@@ -1,4 +1,7 @@
+from unittest.mock import MagicMock, patch
+
 from src.videosong.app import run
+from src.videosong.services.download_service import build_download_options, start_download
 from src.videosong.ui import main_window
 from src.videosong.ui.main_window import (
     MainWindow,
@@ -69,6 +72,7 @@ def test_build_flow_summary_describes_audio_flow_with_destination() -> None:
 
     assert "formato audio" in summary
     assert "C:/Downloads" in summary
+    assert "iniciar o download" in summary
 
 
 def test_build_destination_label_describes_selected_folder() -> None:
@@ -103,6 +107,7 @@ def test_build_status_feedback_returns_success_with_url() -> None:
     assert status_kind == "success"
     assert "audio" in message
     assert "C:/Downloads" in message
+    assert "Tudo pronto para iniciar o download." in message
 
 
 def test_build_status_feedback_returns_success_for_video_mode() -> None:
@@ -161,6 +166,76 @@ def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch)
     assert window.destination_var.get() == "C:/Existing"
     assert window.flow_var.get() == "resumo atual"
     assert window.status_var.get() == "Selecao de pasta cancelada. Escolha um destino para concluir a preparacao."
+
+
+def test_build_download_options_for_video_uses_mp4_preference() -> None:
+    options = build_download_options("video", "C:/Downloads")
+
+    assert options["format"] == "best[ext=mp4]/best"
+    assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
+    assert "Downloads" in options["outtmpl"]
+
+
+def test_build_download_options_for_audio_uses_best_audio() -> None:
+    options = build_download_options("audio", "C:/Downloads")
+
+    assert options["format"] == "bestaudio/best"
+    assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
+    assert "Downloads" in options["outtmpl"]
+
+
+@patch("src.videosong.services.download_service.Path.mkdir")
+@patch("src.videosong.services.download_service.YoutubeDL")
+def test_start_download_calls_ytdlp(mock_ytdl: MagicMock, mock_mkdir: MagicMock) -> None:
+    downloader = MagicMock()
+    mock_ytdl.return_value.__enter__.return_value = downloader
+
+    status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+
+    assert status_kind == "success"
+    assert "C:/Downloads" in message
+    downloader.download.assert_called_once_with(["https://example.com/watch?v=123"])
+    mock_mkdir.assert_called_once()
+
+
+@patch("src.videosong.services.download_service.Path.mkdir")
+@patch("src.videosong.services.download_service.YoutubeDL")
+def test_start_download_returns_error_when_ytdlp_fails(mock_ytdl: MagicMock, _mock_mkdir: MagicMock) -> None:
+    mock_ytdl.return_value.__enter__.side_effect = Exception("falha simulada")
+
+    status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+
+    assert status_kind == "error"
+    assert "falha simulada" in message
+
+
+def test_handle_download_stops_when_validation_fails() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.url_var = FakeVar("")
+    window.mode_var = FakeVar("video")
+    window.destination_var = FakeVar("C:/Downloads")
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+
+    window._handle_download()
+
+    assert window.status_var.get() == "Erro: informe uma URL antes de continuar."
+
+
+def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.url_var = FakeVar("https://example.com/watch?v=123")
+    window.mode_var = FakeVar("audio")
+    window.destination_var = FakeVar("C:/Downloads")
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+
+    monkeypatch.setattr(main_window, "start_download", lambda url, mode, destination: ("success", f"baixado {mode} em {destination}"))
+
+    window._handle_download()
+
+    assert window.status_var.get() == "baixado audio em C:/Downloads"
+    assert window.status_label.fg == "#1f6f43"
 
 
 def test_set_status_updates_message_and_success_color() -> None:
