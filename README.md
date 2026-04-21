@@ -63,6 +63,27 @@ Instalar dependencias:
 python -m pip install -r requirements.txt
 ```
 
+Observacao importante: `requirements.txt` instala apenas dependencias Python. Runtimes de sistema como `Node.js`, `ffmpeg` e `ffprobe` nao podem ser embutidos ali.
+
+## Pre-Requisito para YouTube
+
+Para URLs do YouTube, o `yt-dlp` precisa de um runtime JavaScript compativel. Neste projeto, o caminho recomendado no Windows e instalar `Node.js` LTS 20+.
+
+Setup automatico no Windows:
+
+```powershell
+.\scripts\setup_windows.ps1
+```
+
+Validacao manual depois do setup:
+
+```powershell
+node --version
+where.exe node
+```
+
+Saida esperada: um `node.exe` real, preferencialmente em `C:\Program Files\nodejs\node.exe`, e nao o executavel interno de `WindowsApps`.
+
 ## Como Executar
 
 ```powershell
@@ -91,6 +112,12 @@ Executar os testes locais:
 
 ```powershell
 python -m pytest -q
+```
+
+Validar o setup do runtime JavaScript no Windows sem abrir a interface:
+
+```powershell
+.\scripts\setup_windows.ps1
 ```
 
 ## Empacotamento Windows
@@ -137,3 +164,4 @@ Toda entrega deve, idealmente:
 - `yt-dlp`: base para downloads de video e audio
 - `pytest`: testes rapidos do projeto
 - `pyinstaller`: base inicial para gerar o executavel Windows
+- `Node.js` LTS 20+: runtime JavaScript exigido pelo `yt-dlp` para URLs do YouTube

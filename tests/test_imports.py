@@ -1,7 +1,12 @@
 from unittest.mock import MagicMock, patch
 
 from src.videosong.app import run
-from src.videosong.services.download_service import build_download_options, start_download
+from src.videosong.services.download_service import (
+    build_download_options,
+    find_js_runtime_options,
+    find_node_runtime_path,
+    start_download,
+)
 from src.videosong.ui import main_window
 from src.videosong.ui.main_window import (
     MainWindow,
@@ -177,6 +182,66 @@ def test_build_download_options_for_video_uses_mp4_preference() -> None:
     assert "Downloads" in options["outtmpl"]
 
 
+@patch("src.videosong.services.download_service.which", return_value="C:/Runtime/node.exe")
+def test_find_js_runtime_options_prefers_node_when_available(_mock_which: MagicMock) -> None:
+    with patch("src.videosong.services.download_service.find_node_runtime_path", return_value="C:/Runtime/node.exe"):
+        assert find_js_runtime_options() == {"node": {"path": "C:/Runtime/node.exe"}}
+
+
+@patch("src.videosong.services.download_service.which", return_value=None)
+def test_find_js_runtime_options_returns_empty_when_node_is_missing(_mock_which: MagicMock) -> None:
+    with patch("src.videosong.services.download_service.find_node_runtime_path", return_value=None):
+        assert find_js_runtime_options() == {}
+
+
+@patch("src.videosong.services.download_service.which", return_value="C:/Runtime/node.exe")
+def test_build_download_options_enables_node_runtime_when_available(_mock_which: MagicMock) -> None:
+    with patch("src.videosong.services.download_service.find_node_runtime_path", return_value="C:/Runtime/node.exe"):
+        options = build_download_options("video", "C:/Downloads")
+
+        assert options["js_runtimes"] == {"node": {"path": "C:/Runtime/node.exe"}}
+
+
+@patch("src.videosong.services.download_service.which", return_value="C:/Runtime/node.exe")
+def test_find_node_runtime_path_prefers_working_path_result(_mock_which: MagicMock) -> None:
+    with patch("src.videosong.services.download_service.is_working_node_runtime", side_effect=lambda path: path == "C:/Runtime/node.exe"):
+        assert find_node_runtime_path() == "C:/Runtime/node.exe"
+
+
+@patch("src.videosong.services.download_service.which", return_value="C:/WindowsApps/node.exe")
+@patch.dict(
+    "src.videosong.services.download_service.os.environ",
+    {"ProgramFiles": "C:/Program Files", "LOCALAPPDATA": "C:/Users/Test/AppData/Local"},
+    clear=False,
+)
+def test_find_node_runtime_path_falls_back_to_program_files_when_path_entry_is_not_usable(_mock_which: MagicMock) -> None:
+    valid_path = "C:/Program Files/nodejs/node.exe"
+
+    with patch(
+        "src.videosong.services.download_service.is_working_node_runtime",
+        side_effect=lambda path: str(path).replace("\\", "/") == valid_path,
+    ):
+        assert str(find_node_runtime_path()).replace("\\", "/") == valid_path
+
+
+@patch("src.videosong.services.download_service.run")
+def test_is_working_node_runtime_returns_true_for_version_output(mock_run: MagicMock) -> None:
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = "v22.15.0"
+    mock_run.return_value.stderr = ""
+
+    from src.videosong.services.download_service import is_working_node_runtime
+
+    assert is_working_node_runtime("C:/Runtime/node.exe") is True
+
+
+@patch("src.videosong.services.download_service.run", side_effect=OSError("acesso negado"))
+def test_is_working_node_runtime_returns_false_when_node_cannot_run(_mock_run: MagicMock) -> None:
+    from src.videosong.services.download_service import is_working_node_runtime
+
+    assert is_working_node_runtime("C:/Runtime/node.exe") is False
+
+
 def test_build_download_options_for_audio_uses_mp3_postprocessor() -> None:
     options = build_download_options("audio", "C:/Downloads")
 
@@ -193,7 +258,8 @@ def test_start_download_calls_ytdlp(mock_ytdl: MagicMock, mock_mkdir: MagicMock)
     downloader = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = downloader
 
-    status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "success"
     assert "C:/Downloads" in message
@@ -209,7 +275,8 @@ def test_start_download_for_audio_uses_mp3_postprocessor(mock_ytdl: MagicMock, _
     downloader = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = downloader
 
-    status_kind, _message = start_download("https://example.com/watch?v=123", "audio", "C:/Downloads")
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        status_kind, _message = start_download("https://example.com/watch?v=123", "audio", "C:/Downloads")
 
     assert status_kind == "success"
     options = mock_ytdl.call_args.args[0]
@@ -221,10 +288,20 @@ def test_start_download_for_audio_uses_mp3_postprocessor(mock_ytdl: MagicMock, _
 def test_start_download_returns_error_when_ytdlp_fails(mock_ytdl: MagicMock, _mock_mkdir: MagicMock) -> None:
     mock_ytdl.return_value.__enter__.side_effect = Exception("falha simulada")
 
-    status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "error"
     assert "falha simulada" in message
+
+
+def test_start_download_returns_guidance_for_youtube_without_js_runtime() -> None:
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        status_kind, message = start_download("https://youtu.be/TdrL3QxjyVw", "video", "C:/Downloads")
+
+    assert status_kind == "error"
+    assert "nenhum runtime JavaScript compativel foi encontrado" in message
+    assert "Node.js 20+" in message
 
 
 def test_handle_download_stops_when_validation_fails() -> None:
