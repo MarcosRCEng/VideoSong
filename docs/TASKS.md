@@ -113,7 +113,7 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: `download_service.py` passou a validar se `node` esta realmente executavel antes de habilitar `js_runtimes`; quando a URL e do YouTube e nao ha runtime suportado, o app interrompe com orientacao objetiva em vez de deixar o aviso interno do `yt-dlp`; `scripts/setup_windows.ps1` foi adicionado para instalar/verificar `Node.js` LTS no Windows e o `README.md` passou a documentar esse pre-requisito fora do `requirements.txt`
   test: `.\.venv\Scripts\python.exe -m pytest -q`, checagem local confirmando que o `node.exe` encontrado em `WindowsApps` nao esta utilizavel como runtime para o `yt-dlp` e validacao de sintaxe do script `.\scripts\setup_windows.ps1`
   commit: realizado na branch `codex/task-runtime-js-ytdlp`
-- [ ] Garantir `ffmpeg` e `ffprobe` no fluxo de download de video e audio
-  dev: ajustar o projeto para localizar, orientar ou empacotar `ffmpeg/ffprobe`, evitando falhas de merge em `.mp4` e conversao para `.mp3`
-  test: validar download de video com merge final e download de audio com postprocessamento `.mp3` sem erros de `ffmpeg`
+- [x] Garantir `ffmpeg` e `ffprobe` no fluxo de download de video e audio
+  dev: `download_service.py` passou a localizar `ffmpeg` e `ffprobe` no ambiente e tambem nos binarios empacotados pelo PyInstaller; `scripts/setup_windows.ps1` agora instala/verifica `Node.js`, `ffmpeg` e `ffprobe`; `scripts/build_windows.ps1` passou a bloquear build incompleto e `VideoSong.spec` embute `ffmpeg/ffprobe` no pacote final quando encontrados
+  test: validacao automatizada do Python e validacao de sintaxe/execucao dos scripts de setup e build no Windows
   commit: pendente

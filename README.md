@@ -65,9 +65,12 @@ python -m pip install -r requirements.txt
 
 Observacao importante: `requirements.txt` instala apenas dependencias Python. Runtimes de sistema como `Node.js`, `ffmpeg` e `ffprobe` nao podem ser embutidos ali.
 
-## Pre-Requisito para YouTube
+## Pre-Requisitos de Sistema
 
-Para URLs do YouTube, o `yt-dlp` precisa de um runtime JavaScript compativel. Neste projeto, o caminho recomendado no Windows e instalar `Node.js` LTS 20+.
+Para evitar pendencias no uso local e no pacote Windows, o projeto depende destes binarios externos durante o setup/build:
+
+- `Node.js` LTS 20+: necessario para URLs do YouTube
+- `ffmpeg` e `ffprobe`: necessarios para merge final de `.mp4` e extracao final de `.mp3`
 
 Setup automatico no Windows:
 
@@ -79,10 +82,18 @@ Validacao manual depois do setup:
 
 ```powershell
 node --version
+ffmpeg -version
+ffprobe -version
 where.exe node
+where.exe ffmpeg
+where.exe ffprobe
 ```
 
-Saida esperada: um `node.exe` real, preferencialmente em `C:\Program Files\nodejs\node.exe`, e nao o executavel interno de `WindowsApps`.
+Saida esperada: binarios reais e utilizaveis, preferencialmente fora de `WindowsApps`.
+
+## Pre-Requisito para YouTube
+
+Para URLs do YouTube, o `yt-dlp` precisa de um runtime JavaScript compativel. Neste projeto, o caminho recomendado no Windows e instalar `Node.js` LTS 20+.
 
 ## Como Executar
 
@@ -104,7 +115,7 @@ python main.py
 - modo `audio`: extrai e salva o arquivo final em `.mp3`
 - pasta de destino: e criada automaticamente se ainda nao existir
 - playlists: sao ignoradas nesta fatia inicial para manter o fluxo simples
-- observacao: a conversao para `.mp3` depende do `ffmpeg` estar disponivel no ambiente
+- observacao: em execucao local o app procura `ffmpeg` e `ffprobe` no ambiente; no pacote Windows gerado por `.\scripts\build_windows.ps1`, ambos sao incluidos dentro do executavel gerado em `dist\`
 
 ## Validacao Rapida
 
@@ -136,7 +147,11 @@ Gerar o executavel localmente:
 
 Saida esperada: `dist\VideoSong.exe`
 
-Observacao: o script limpa `build\` e `dist\` antes de gerar um executavel novo, para evitar residuos de empacotamentos antigos.
+Observacoes:
+
+- o script limpa `build\` e `dist\` antes de gerar um executavel novo, para evitar residuos de empacotamentos antigos
+- o build exige `Node.js`, `ffmpeg` e `ffprobe` utilizaveis na maquina de empacotamento
+- quando presentes, `ffmpeg` e `ffprobe` sao embutidos no pacote final para evitar dependencia extra na maquina de destino
 
 Executar o binario gerado:
 
@@ -165,3 +180,4 @@ Toda entrega deve, idealmente:
 - `pytest`: testes rapidos do projeto
 - `pyinstaller`: base inicial para gerar o executavel Windows
 - `Node.js` LTS 20+: runtime JavaScript exigido pelo `yt-dlp` para URLs do YouTube
+- `ffmpeg` e `ffprobe`: binarios necessarios para merge de video e extracao de audio

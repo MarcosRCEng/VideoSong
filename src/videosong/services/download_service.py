@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from shutil import which
 from subprocess import DEVNULL, run
@@ -35,6 +36,42 @@ def is_working_node_runtime(node_path: str | None) -> bool:
     return version_output.startswith("v")
 
 
+def is_working_ffmpeg_binary(binary_path: str | None) -> bool:
+    if not binary_path:
+        return False
+
+    try:
+        completed = run(
+            [binary_path, "-version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            stdin=DEVNULL,
+        )
+    except OSError:
+        return False
+
+    if completed.returncode != 0:
+        return False
+
+    version_output = f"{completed.stdout}{completed.stderr}".lower()
+    return "ffmpeg version" in version_output or "ffprobe version" in version_output
+
+
+def get_runtime_search_roots() -> list[str]:
+    roots: list[str] = []
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        roots.append(str(Path(meipass)))
+
+    executable_parent = Path(sys.executable).resolve().parent
+    roots.append(str(executable_parent))
+    roots.append(str(Path(__file__).resolve().parent))
+
+    return list(dict.fromkeys(roots))
+
+
 def find_node_runtime_path() -> str | None:
     candidates = [
         which("node"),
@@ -47,6 +84,51 @@ def find_node_runtime_path() -> str | None:
             return candidate
 
     return None
+
+
+def find_ffmpeg_binary_path(binary_name: str) -> str | None:
+    executable_name = f"{binary_name}.exe" if os.name == "nt" else binary_name
+    bundled_candidates: list[str] = []
+
+    for root in get_runtime_search_roots():
+        bundled_candidates.extend(
+            [
+                os.path.join(root, executable_name),
+                os.path.join(root, "ffmpeg", executable_name),
+                os.path.join(root, "bin", executable_name),
+            ]
+        )
+
+    candidates = [
+        *bundled_candidates,
+        which(binary_name),
+        os.path.join(os.environ.get("ProgramFiles", ""), "ffmpeg", "bin", executable_name),
+        os.path.join(os.environ.get("ProgramFiles", ""), "ffmpeg", executable_name),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Links", executable_name),
+        os.path.join(os.environ.get("ChocolateyInstall", ""), "bin", executable_name),
+    ]
+
+    for candidate in candidates:
+        if is_working_ffmpeg_binary(candidate):
+            return candidate
+
+    return None
+
+
+def find_ffmpeg_location() -> str | None:
+    ffmpeg_path = find_ffmpeg_binary_path("ffmpeg")
+    ffprobe_path = find_ffmpeg_binary_path("ffprobe")
+
+    if not ffmpeg_path or not ffprobe_path:
+        return None
+
+    ffmpeg_parent = str(Path(ffmpeg_path).parent)
+    ffprobe_parent = str(Path(ffprobe_path).parent)
+
+    if ffmpeg_parent == ffprobe_parent:
+        return ffmpeg_parent
+
+    return ffmpeg_path
 
 
 def find_js_runtime_options() -> dict[str, dict[str, str]]:
@@ -69,25 +151,29 @@ def build_download_options(mode: str, destination: str) -> dict[str, object]:
     if js_runtimes:
         options["js_runtimes"] = js_runtimes
 
+    ffmpeg_location = find_ffmpeg_location()
+    if ffmpeg_location:
+        options["ffmpeg_location"] = ffmpeg_location
+
     if mode == "audio":
         options.update(
             {
-            "format": "bestaudio/best",
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": "192",
-                }
-            ],
+                "format": "bestaudio/best",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                ],
             }
         )
         return options
 
     options.update(
         {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
-        "merge_output_format": "mp4",
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+            "merge_output_format": "mp4",
         }
     )
     return options
@@ -105,6 +191,15 @@ def start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
             (
                 "Erro ao preparar o download do YouTube: nenhum runtime JavaScript compativel foi encontrado. "
                 "Instale Node.js 20+ e garanta que `node` esteja disponivel no PATH antes de tentar novamente."
+            ),
+        )
+
+    if not find_ffmpeg_location():
+        return (
+            "error",
+            (
+                "Erro ao preparar o download: `ffmpeg` e `ffprobe` nao foram encontrados em um local utilizavel. "
+                "Instale o pacote completo do FFmpeg e garanta que ambos estejam disponiveis no PATH antes de tentar novamente."
             ),
         )
 
