@@ -80,5 +80,8 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: testes unitarios adicionados para validacao de URL, resumo do fluxo e mensagens/status centrais da interface
   test: `python -m pytest -q`
   commit: aguardando autorizacao
-- [ ] Preparar empacotamento para Windows
+- [x] Preparar empacotamento para Windows
+  dev: `requirements-dev.txt`, `VideoSong.spec` e `scripts/build_windows.ps1` adicionados com base minima de PyInstaller para gerar `dist\VideoSong.exe`
+  test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
+  commit: aguardando autorizacao
 - [ ] Revisar README com instrucoes finais de uso
