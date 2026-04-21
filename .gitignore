@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.tmp/
+pytest-cache-files-*/
+
+# Distribution
+build/
+dist/
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Local logs
+*.log
