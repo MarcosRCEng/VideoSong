@@ -109,3 +109,11 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: definir uma convencao para gerar e registrar um `.exe` versionado a cada sprint concluida como marco de evolucao do projeto
   test: validar a presenca do artefato versionado e atualizar a documentacao do fluxo de release
   commit: pendente
+- [x] Configurar runtime JavaScript compativel com `yt-dlp` para URLs do YouTube
+  dev: `download_service.py` passou a validar se `node` esta realmente executavel antes de habilitar `js_runtimes`; quando a URL e do YouTube e nao ha runtime suportado, o app interrompe com orientacao objetiva em vez de deixar o aviso interno do `yt-dlp`; `scripts/setup_windows.ps1` foi adicionado para instalar/verificar `Node.js` LTS no Windows e o `README.md` passou a documentar esse pre-requisito fora do `requirements.txt`
+  test: `.\.venv\Scripts\python.exe -m pytest -q`, checagem local confirmando que o `node.exe` encontrado em `WindowsApps` nao esta utilizavel como runtime para o `yt-dlp` e validacao de sintaxe do script `.\scripts\setup_windows.ps1`
+  commit: realizado na branch `codex/task-runtime-js-ytdlp`
+- [ ] Garantir `ffmpeg` e `ffprobe` no fluxo de download de video e audio
+  dev: ajustar o projeto para localizar, orientar ou empacotar `ffmpeg/ffprobe`, evitando falhas de merge em `.mp4` e conversao para `.mp3`
+  test: validar download de video com merge final e download de audio com postprocessamento `.mp3` sem erros de `ffmpeg`
+  commit: pendente
