@@ -59,6 +59,22 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
+## Empacotamento Windows
+
+Instalar as dependencias de desenvolvimento:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+```
+
+Gerar o executavel localmente:
+
+```powershell
+.\scripts\build_windows.ps1
+```
+
+Saida esperada: `dist\VideoSong.exe`
+
 ## Fluxo de Trabalho
 
 O projeto usa dois arquivos curtos para reduzir contexto e manter execucao objetiva:
@@ -78,6 +94,7 @@ Toda entrega deve, idealmente:
 
 - `yt-dlp`: base para downloads de video e audio
 - `pytest`: testes rapidos do projeto
+- `pyinstaller`: base inicial para gerar o executavel Windows
 
 ## Proximos Passos
 
