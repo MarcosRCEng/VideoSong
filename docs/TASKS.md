@@ -76,6 +76,9 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: interface orienta melhor o fluxo de URL e formato, com mensagens distintas para URL vazia, URL invalida e fluxo validado
   test: `python -m pytest -q`
   commit: realizado na branch `codex/task-melhorar-mensagens-e-validacoes`
-- [ ] Adicionar testes dos modulos centrais
+- [x] Adicionar testes dos modulos centrais
+  dev: testes unitarios adicionados para validacao de URL, resumo do fluxo e mensagens/status centrais da interface
+  test: `python -m pytest -q`
+  commit: aguardando autorizacao
 - [ ] Preparar empacotamento para Windows
 - [ ] Revisar README com instrucoes finais de uso
