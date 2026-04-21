@@ -12,7 +12,17 @@ Construir um app leve, local e facil de evoluir, com foco em:
 - acompanhar o status do download
 - manter o projeto simples o bastante para iterarmos aqui no Codex
 
-## Estrutura Inicial
+## Estado Atual
+
+O fluxo atual do aplicativo ja permite:
+
+- informar uma URL com `http://` ou `https://`
+- escolher entre download de `video` ou `audio`
+- selecionar a pasta de destino
+- iniciar o download local com `yt-dlp`
+- acompanhar mensagens simples de validacao, erro e sucesso
+
+## Estrutura
 
 ```text
 VideoSong/
@@ -59,6 +69,29 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
+## Como Usar
+
+1. Abra o aplicativo com `python main.py`.
+2. Cole a URL completa do video.
+3. Escolha `Video completo` ou `Somente audio`.
+4. Clique em `Escolher pasta` e selecione o destino do arquivo.
+5. Clique em `Iniciar download`.
+
+## Comportamento Atual do Download
+
+- modo `video`: tenta baixar a melhor opcao disponivel com preferencia para `mp4`
+- modo `audio`: baixa o melhor audio disponivel usando o container retornado pela fonte
+- pasta de destino: e criada automaticamente se ainda nao existir
+- playlists: sao ignoradas nesta fatia inicial para manter o fluxo simples
+
+## Validacao Rapida
+
+Executar os testes locais:
+
+```powershell
+python -m pytest -q
+```
+
 ## Empacotamento Windows
 
 Instalar as dependencias de desenvolvimento:
@@ -74,6 +107,12 @@ Gerar o executavel localmente:
 ```
 
 Saida esperada: `dist\VideoSong.exe`
+
+Executar o binario gerado:
+
+```powershell
+.\dist\VideoSong.exe
+```
 
 ## Fluxo de Trabalho
 
@@ -95,10 +134,3 @@ Toda entrega deve, idealmente:
 - `yt-dlp`: base para downloads de video e audio
 - `pytest`: testes rapidos do projeto
 - `pyinstaller`: base inicial para gerar o executavel Windows
-
-## Proximos Passos
-
-- implementar servico de download
-- integrar escolha de pasta de destino
-- adicionar opcoes de audio e video na interface
-- exibir progresso e mensagens de erro amigaveis

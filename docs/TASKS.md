@@ -70,7 +70,7 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 - [x] Integrar `yt-dlp` no servico de download
   dev: `download_service.py` adicionado e integrado a interface para iniciar o download real com `yt-dlp`
   test: `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-integracao-real-yt-dlp-atual`
 - [x] Exibir status de sucesso e erro
   dev: interface atualizada para destacar URL, formato e feedback visual de sucesso ou erro
   test: `python -m pytest -q`
@@ -90,4 +90,14 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: `requirements-dev.txt`, `VideoSong.spec` e `scripts/build_windows.ps1` adicionados com base minima de PyInstaller para gerar `dist\VideoSong.exe`
   test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
   commit: realizado na branch `codex/task-preparar-empacotamento-windows`
-- [ ] Revisar README com instrucoes finais de uso
+- [x] Revisar README com instrucoes finais de uso
+  dev: `README.md` atualizado com estado atual do app, fluxo de uso, validacao local e empacotamento Windows
+  test: revisao manual do conteudo e `python -m pytest -q`
+  commit: aguardando autorizacao
+
+## Backlog Pos-Projeto
+
+- [ ] Padronizar formatos finais de download para `.mp4` e `.mp3`
+  dev: ajustar o fluxo para salvar video final em `.mp4` e somente audio final em `.mp3`
+  test: validar o comportamento do servico de download e atualizar os testes automatizados
+  commit: pendente
