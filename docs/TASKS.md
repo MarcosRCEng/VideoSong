@@ -56,19 +56,22 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 - [x] Definir fluxo de entrada da URL
   dev: interface exibe a etapa de URL e resumo dinamico do fluxo
   test: `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado no historico atual do projeto
 
 - [x] Implementar escolha entre video e audio
   dev: interface permite selecionar entre `video` e `audio` por radio buttons
   test: `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado no historico atual do projeto
 
-- [ ] Implementar escolha de pasta de destino
+- [x] Implementar escolha de pasta de destino
+  dev: interface permite escolher uma pasta local e inclui o destino no resumo e na validacao do fluxo
+  test: `python -m pytest -q`
+  commit: aguardando autorizacao
 - [ ] Integrar `yt-dlp` no servico de download
 - [x] Exibir status de sucesso e erro
   dev: interface atualizada para destacar URL, formato e feedback visual de sucesso ou erro
   test: `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-status-sucesso-erro`
 
 ## Sprint 2 - Qualidade e Entrega
 
@@ -79,9 +82,9 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 - [x] Adicionar testes dos modulos centrais
   dev: testes unitarios adicionados para validacao de URL, resumo do fluxo e mensagens/status centrais da interface
   test: `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-testes-modulos-centrais`
 - [x] Preparar empacotamento para Windows
   dev: `requirements-dev.txt`, `VideoSong.spec` e `scripts/build_windows.ps1` adicionados com base minima de PyInstaller para gerar `dist\VideoSong.exe`
   test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-preparar-empacotamento-windows`
 - [ ] Revisar README com instrucoes finais de uso
