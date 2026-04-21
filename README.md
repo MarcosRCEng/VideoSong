@@ -79,10 +79,11 @@ python main.py
 
 ## Comportamento Atual do Download
 
-- modo `video`: tenta baixar a melhor opcao disponivel com preferencia para `mp4`
-- modo `audio`: baixa o melhor audio disponivel usando o container retornado pela fonte
+- modo `video`: salva o arquivo final em `.mp4`
+- modo `audio`: extrai e salva o arquivo final em `.mp3`
 - pasta de destino: e criada automaticamente se ainda nao existir
 - playlists: sao ignoradas nesta fatia inicial para manter o fluxo simples
+- observacao: a conversao para `.mp3` depende do `ffmpeg` estar disponivel no ambiente
 
 ## Validacao Rapida
 
