@@ -72,7 +72,10 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 
 ## Sprint 2 - Qualidade e Entrega
 
-- [ ] Melhorar mensagens e validacoes
+- [x] Melhorar mensagens e validacoes
+  dev: interface orienta melhor o fluxo de URL e formato, com mensagens distintas para URL vazia, URL invalida e fluxo validado
+  test: `python -m pytest -q`
+  commit: realizado na branch `codex/task-melhorar-mensagens-e-validacoes`
 - [ ] Adicionar testes dos modulos centrais
 - [ ] Preparar empacotamento para Windows
 - [ ] Revisar README com instrucoes finais de uso
