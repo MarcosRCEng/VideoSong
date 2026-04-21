@@ -3,8 +3,10 @@ from unittest.mock import MagicMock, patch
 from src.videosong.app import run
 from src.videosong.services.download_service import (
     build_download_options,
+    find_ffmpeg_location,
     find_js_runtime_options,
     find_node_runtime_path,
+    find_ffmpeg_binary_path,
     start_download,
 )
 from src.videosong.ui import main_window
@@ -174,10 +176,12 @@ def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch)
 
 
 def test_build_download_options_for_video_uses_mp4_preference() -> None:
-    options = build_download_options("video", "C:/Downloads")
+    with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+        options = build_download_options("video", "C:/Downloads")
 
     assert options["format"] == "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
     assert options["merge_output_format"] == "mp4"
+    assert options["ffmpeg_location"] == "C:/ffmpeg/bin"
     assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
     assert "Downloads" in options["outtmpl"]
 
@@ -243,13 +247,40 @@ def test_is_working_node_runtime_returns_false_when_node_cannot_run(_mock_run: M
 
 
 def test_build_download_options_for_audio_uses_mp3_postprocessor() -> None:
-    options = build_download_options("audio", "C:/Downloads")
+    with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+        options = build_download_options("audio", "C:/Downloads")
 
     assert options["format"] == "bestaudio/best"
     assert options["postprocessors"][0]["key"] == "FFmpegExtractAudio"
     assert options["postprocessors"][0]["preferredcodec"] == "mp3"
+    assert options["ffmpeg_location"] == "C:/ffmpeg/bin"
     assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
     assert "Downloads" in options["outtmpl"]
+
+
+@patch("src.videosong.services.download_service.which", return_value="C:/ffmpeg/bin/ffmpeg.exe")
+def test_find_ffmpeg_binary_path_prefers_working_path_result(_mock_which: MagicMock) -> None:
+    with patch(
+        "src.videosong.services.download_service.is_working_ffmpeg_binary",
+        side_effect=lambda path: str(path).replace("\\", "/") == "C:/ffmpeg/bin/ffmpeg.exe",
+    ):
+        assert str(find_ffmpeg_binary_path("ffmpeg")).replace("\\", "/") == "C:/ffmpeg/bin/ffmpeg.exe"
+
+
+def test_find_ffmpeg_location_uses_shared_bin_folder() -> None:
+    with patch(
+        "src.videosong.services.download_service.find_ffmpeg_binary_path",
+        side_effect=["C:/ffmpeg/bin/ffmpeg.exe", "C:/ffmpeg/bin/ffprobe.exe"],
+    ):
+        assert str(find_ffmpeg_location()).replace("\\", "/") == "C:/ffmpeg/bin"
+
+
+def test_find_ffmpeg_location_returns_none_when_ffprobe_is_missing() -> None:
+    with patch(
+        "src.videosong.services.download_service.find_ffmpeg_binary_path",
+        side_effect=["C:/ffmpeg/bin/ffmpeg.exe", None],
+    ):
+        assert find_ffmpeg_location() is None
 
 
 @patch("src.videosong.services.download_service.Path.mkdir")
@@ -259,7 +290,8 @@ def test_start_download_calls_ytdlp(mock_ytdl: MagicMock, mock_mkdir: MagicMock)
     mock_ytdl.return_value.__enter__.return_value = downloader
 
     with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
-        status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+            status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "success"
     assert "C:/Downloads" in message
@@ -276,7 +308,8 @@ def test_start_download_for_audio_uses_mp3_postprocessor(mock_ytdl: MagicMock, _
     mock_ytdl.return_value.__enter__.return_value = downloader
 
     with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
-        status_kind, _message = start_download("https://example.com/watch?v=123", "audio", "C:/Downloads")
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+            status_kind, _message = start_download("https://example.com/watch?v=123", "audio", "C:/Downloads")
 
     assert status_kind == "success"
     options = mock_ytdl.call_args.args[0]
@@ -289,7 +322,8 @@ def test_start_download_returns_error_when_ytdlp_fails(mock_ytdl: MagicMock, _mo
     mock_ytdl.return_value.__enter__.side_effect = Exception("falha simulada")
 
     with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
-        status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+            status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "error"
     assert "falha simulada" in message
@@ -302,6 +336,15 @@ def test_start_download_returns_guidance_for_youtube_without_js_runtime() -> Non
     assert status_kind == "error"
     assert "nenhum runtime JavaScript compativel foi encontrado" in message
     assert "Node.js 20+" in message
+
+
+def test_start_download_returns_guidance_when_ffmpeg_tools_are_missing() -> None:
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value=None):
+            status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+
+    assert status_kind == "error"
+    assert "`ffmpeg` e `ffprobe` nao foram encontrados" in message
 
 
 def test_handle_download_stops_when_validation_fails() -> None:

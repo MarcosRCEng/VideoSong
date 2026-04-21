@@ -1,10 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+from pathlib import Path
+
+
+def get_packaged_binary(path_value, binary_name):
+    if not path_value:
+        return []
+
+    binary_path = Path(path_value)
+    if not binary_path.exists():
+        return []
+
+    return [(str(binary_path), ".")]
+
+
+packaged_binaries = []
+packaged_binaries += get_packaged_binary(os.environ.get("VIDEOSONG_FFMPEG_PATH"), "ffmpeg")
+packaged_binaries += get_packaged_binary(os.environ.get("VIDEOSONG_FFPROBE_PATH"), "ffprobe")
+
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=packaged_binaries,
     datas=[],
     hiddenimports=[],
     hookspath=[],
