@@ -1,38 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 
-
-def get_mode_details(mode: str) -> tuple[str, str]:
-    if mode == "audio":
-        return ("Audio", "Extrair somente o audio do link informado.")
-
-    return ("Video", "Baixar o video completo do link informado.")
-
-
-def build_destination_label(destination: str) -> str:
-    clean_destination = destination.strip()
-
-    if not clean_destination:
-        return "Nenhuma pasta selecionada ainda."
-
-    return f"Pasta de destino: {clean_destination}"
-
-
-def build_flow_summary(url: str, mode: str, destination: str) -> str:
-    clean_url = url.strip()
-    mode_label, mode_description = get_mode_details(mode)
-    destination_label = build_destination_label(destination)
-
-    if not clean_url:
-        return "Cole uma URL para liberar a revisao do download."
-
-    if not destination.strip():
-        return (
-            f"URL pronta para baixar em modo {mode_label.lower()}: {clean_url}. "
-            f"{mode_description} Escolha a pasta de destino para concluir a preparacao."
-        )
-
-    return f"Pronto para baixar em modo {mode_label.lower()}: {clean_url}. {mode_description} {destination_label}"
+from src.videosong.services.download_service import (
+    build_destination_label,
+    build_download_checklist,
+    build_download_plan,
+    build_flow_summary,
+)
 
 
 class MainWindow:
@@ -45,6 +19,7 @@ class MainWindow:
         self.url_var = tk.StringVar()
         self.mode_var = tk.StringVar(value="video")
         self.destination_var = tk.StringVar()
+        self.checklist_var = tk.StringVar()
         self.summary_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Preencha a URL e escolha o formato para preparar o download.")
         self.selected_destination = ""
@@ -115,10 +90,13 @@ class MainWindow:
             wraplength=620,
         ).pack(anchor="w", pady=(10, 0))
 
+        ttk.Label(container, text="Checklist da preparacao").pack(anchor="w", pady=(16, 0))
+        ttk.Label(container, textvariable=self.checklist_var, justify="left").pack(anchor="w", pady=(4, 0))
+
         ttk.Label(container, text="Resumo do fluxo").pack(anchor="w", pady=(16, 0))
         ttk.Label(container, textvariable=self.summary_var, wraplength=620).pack(anchor="w", pady=(4, 12))
 
-        ttk.Button(container, text="Preparar download", command=self._handle_download).pack(anchor="w")
+        ttk.Button(container, text="Revisar preparacao do download", command=self._handle_download).pack(anchor="w")
 
         ttk.Separator(container, orient="horizontal").pack(fill="x", pady=16)
         ttk.Label(container, text="Status").pack(anchor="w")
@@ -128,8 +106,10 @@ class MainWindow:
         self._refresh_flow_summary()
 
     def _refresh_flow_summary(self) -> None:
-        self.summary_var.set(build_flow_summary(self.url_var.get(), self.mode_var.get(), self.selected_destination))
-        self.destination_var.set(build_destination_label(self.selected_destination))
+        plan = build_download_plan(self.url_var.get(), self.mode_var.get(), self.selected_destination)
+        self.summary_var.set(build_flow_summary(plan))
+        self.destination_var.set(build_destination_label(plan))
+        self.checklist_var.set(build_download_checklist(plan))
 
     def _handle_choose_destination(self) -> None:
         selected_directory = filedialog.askdirectory(title="Escolher pasta de destino")
@@ -153,10 +133,10 @@ class MainWindow:
             self.status_var.set("Escolha uma pasta de destino para continuar.")
             return
 
-        mode_label, mode_description = get_mode_details(self.mode_var.get())
+        plan = build_download_plan(url, self.mode_var.get(), self.selected_destination)
         self.status_var.set(
             f"Fluxo definido com sucesso para salvar em {self.selected_destination}. "
-            f"Proxima etapa: conectar o download de {mode_label.lower()}. {mode_description}"
+            f"Proxima etapa: conectar o download de {plan.mode_label.lower()}. {plan.mode_description}"
         )
 
     def run(self) -> None:
