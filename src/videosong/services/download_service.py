@@ -34,6 +34,12 @@ class DownloadPlan:
         return self.has_url and self.has_destination
 
 
+@dataclass(frozen=True)
+class StatusFeedback:
+    tone: str
+    message: str
+
+
 def build_download_plan(url: str, mode: str, destination: str) -> DownloadPlan:
     clean_mode = "audio" if mode == "audio" else "video"
 
@@ -79,4 +85,27 @@ def build_download_checklist(plan: DownloadPlan) -> str:
         f"Formato: {plan.mode_label}\n"
         f"Pasta: {destination_status}\n"
         f"{readiness}"
+    )
+
+
+def build_review_status(plan: DownloadPlan) -> StatusFeedback:
+    if not plan.has_url:
+        return StatusFeedback(
+            tone="error",
+            message="Informe uma URL para continuar.",
+        )
+
+    if not plan.has_destination:
+        return StatusFeedback(
+            tone="error",
+            message="Escolha uma pasta de destino para continuar.",
+        )
+
+    return StatusFeedback(
+        tone="success",
+        message=(
+            f"Fluxo definido com sucesso para {plan.mode_label.lower()}. "
+            f"Destino confirmado em {plan.destination}. "
+            f"Proxima etapa: conectar o download real."
+        ),
     )

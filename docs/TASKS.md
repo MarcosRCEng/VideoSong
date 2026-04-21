@@ -68,10 +68,13 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   test: `python -m pytest -q`
   commit: pronto para registrar
 - [-] Integrar `yt-dlp` no servico de download
-  dev: base do servico de download criada com plano simples consumido pela interface para explicitar URL, formato e prontidao antes da integracao real
+  dev: base do servico de download mantida simples, com a interface preparada para validar o fluxo antes da integracao real do `yt-dlp`
   test: `.venv\Scripts\python.exe -m pytest -q`
-  commit: realizado em checkpoint incremental na branch da tarefa
-- [ ] Exibir status de sucesso e erro
+  commit: aguardando nova entrega da integracao real
+- [x] Exibir status de sucesso e erro
+  dev: mensagens de revisao centralizadas no servico e exibidas na interface com estados visuais de sucesso e erro
+  test: `.venv\Scripts\python.exe -m pytest -q`
+  commit: pronto para registrar
 
 ## Sprint 2 - Qualidade e Entrega
 

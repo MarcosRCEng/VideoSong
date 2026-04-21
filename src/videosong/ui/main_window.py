@@ -6,6 +6,7 @@ from src.videosong.services.download_service import (
     build_download_checklist,
     build_download_plan,
     build_flow_summary,
+    build_review_status,
 )
 
 
@@ -23,6 +24,7 @@ class MainWindow:
         self.summary_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Preencha a URL e escolha o formato para preparar o download.")
         self.selected_destination = ""
+        self.status_label: ttk.Label | None = None
 
         self.url_var.trace_add("write", self._handle_form_change)
         self.mode_var.trace_add("write", self._handle_form_change)
@@ -96,11 +98,22 @@ class MainWindow:
         ttk.Label(container, text="Resumo do fluxo").pack(anchor="w", pady=(16, 0))
         ttk.Label(container, textvariable=self.summary_var, wraplength=620).pack(anchor="w", pady=(4, 12))
 
-        ttk.Button(container, text="Revisar preparacao do download", command=self._handle_download).pack(anchor="w")
+        review_section = ttk.LabelFrame(container, text="4. Revisao final", padding=16)
+        review_section.pack(fill="x")
+
+        ttk.Label(
+            review_section,
+            text="Confira o resumo acima e valide a preparacao antes de integrar o download real.",
+            wraplength=620,
+        ).pack(anchor="w")
+        ttk.Button(review_section, text="Validar preparacao do download", command=self._handle_download).pack(
+            anchor="w", pady=(10, 0)
+        )
 
         ttk.Separator(container, orient="horizontal").pack(fill="x", pady=16)
         ttk.Label(container, text="Status").pack(anchor="w")
-        ttk.Label(container, textvariable=self.status_var, wraplength=620).pack(anchor="w", pady=(4, 0))
+        self.status_label = ttk.Label(container, textvariable=self.status_var, wraplength=620)
+        self.status_label.pack(anchor="w", pady=(4, 0))
 
     def _handle_form_change(self, *_args: object) -> None:
         self._refresh_flow_summary()
@@ -110,34 +123,39 @@ class MainWindow:
         self.summary_var.set(build_flow_summary(plan))
         self.destination_var.set(build_destination_label(plan))
         self.checklist_var.set(build_download_checklist(plan))
+        self._set_status("Preencha os itens pendentes e valide a preparacao quando estiver tudo certo.")
 
     def _handle_choose_destination(self) -> None:
         selected_directory = filedialog.askdirectory(title="Escolher pasta de destino")
 
         if not selected_directory:
-            self.status_var.set("Selecao de pasta cancelada. Escolha uma pasta para concluir a preparacao.")
+            self._set_status(
+                "Selecao de pasta cancelada. Escolha uma pasta para concluir a preparacao.",
+                tone="error",
+            )
             return
 
         self.selected_destination = selected_directory
         self._refresh_flow_summary()
-        self.status_var.set("Pasta de destino definida. Revise o resumo e prepare o download.")
+        self._set_status("Pasta de destino definida. Revise o resumo e valide a preparacao.", tone="success")
 
     def _handle_download(self) -> None:
-        url = self.url_var.get().strip()
+        plan = build_download_plan(self.url_var.get(), self.mode_var.get(), self.selected_destination)
+        feedback = build_review_status(plan)
+        self._set_status(feedback.message, tone=feedback.tone)
 
-        if not url:
-            self.status_var.set("Informe uma URL para continuar.")
+    def _set_status(self, message: str, tone: str = "info") -> None:
+        self.status_var.set(message)
+
+        if self.status_label is None:
             return
 
-        if not self.selected_destination:
-            self.status_var.set("Escolha uma pasta de destino para continuar.")
-            return
-
-        plan = build_download_plan(url, self.mode_var.get(), self.selected_destination)
-        self.status_var.set(
-            f"Fluxo definido com sucesso para salvar em {self.selected_destination}. "
-            f"Proxima etapa: conectar o download de {plan.mode_label.lower()}. {plan.mode_description}"
-        )
+        colors = {
+            "info": "#1f3a5f",
+            "success": "#1f6b42",
+            "error": "#9f2d2d",
+        }
+        self.status_label.configure(foreground=colors.get(tone, colors["info"]))
 
     def run(self) -> None:
         self.root.mainloop()

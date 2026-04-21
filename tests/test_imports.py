@@ -4,6 +4,7 @@ from src.videosong.services.download_service import (
     build_download_checklist,
     build_download_plan,
     build_flow_summary,
+    build_review_status,
 )
 
 
@@ -51,3 +52,25 @@ def test_build_download_checklist_marks_missing_steps() -> None:
     assert "URL: pendente" in checklist
     assert "Formato: Audio" in checklist
     assert "Pasta: pendente" in checklist
+
+
+def test_build_review_status_requires_url() -> None:
+    feedback = build_review_status(build_download_plan("", "video", "C:/Downloads"))
+
+    assert feedback.tone == "error"
+    assert feedback.message == "Informe uma URL para continuar."
+
+
+def test_build_review_status_requires_destination() -> None:
+    feedback = build_review_status(build_download_plan("https://example.com/watch?v=123", "audio", ""))
+
+    assert feedback.tone == "error"
+    assert feedback.message == "Escolha uma pasta de destino para continuar."
+
+
+def test_build_review_status_success_when_plan_is_ready() -> None:
+    feedback = build_review_status(build_download_plan("https://example.com/watch?v=123", "audio", "C:/Downloads"))
+
+    assert feedback.tone == "success"
+    assert "Fluxo definido com sucesso para audio." in feedback.message
+    assert "C:/Downloads" in feedback.message
