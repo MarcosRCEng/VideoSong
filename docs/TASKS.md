@@ -53,11 +53,22 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 
 ## Sprint 1 - Download Minimo Viavel
 
-- [ ] Definir fluxo de entrada da URL
-- [ ] Implementar escolha entre video e audio
+- [x] Definir fluxo de entrada da URL
+  dev: interface exibe a etapa de URL e resumo dinamico do fluxo
+  test: `python -m pytest -q`
+  commit: aguardando autorizacao
+
+- [x] Implementar escolha entre video e audio
+  dev: interface permite selecionar entre `video` e `audio` por radio buttons
+  test: `python -m pytest -q`
+  commit: aguardando autorizacao
+
 - [ ] Implementar escolha de pasta de destino
 - [ ] Integrar `yt-dlp` no servico de download
-- [ ] Exibir status de sucesso e erro
+- [x] Exibir status de sucesso e erro
+  dev: interface atualizada para destacar URL, formato e feedback visual de sucesso ou erro
+  test: `python -m pytest -q`
+  commit: aguardando autorizacao
 
 ## Sprint 2 - Qualidade e Entrega
 
