@@ -63,7 +63,10 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   test: `python -m pytest -q`
   commit: pronto para registrar
 
-- [ ] Implementar escolha de pasta de destino
+- [x] Implementar escolha de pasta de destino
+  dev: etapa visual de pasta adicionada na interface com seletor e resumo atualizado com o destino escolhido
+  test: `python -m pytest -q`
+  commit: pronto para registrar
 - [ ] Integrar `yt-dlp` no servico de download
 - [ ] Exibir status de sucesso e erro
 
