@@ -171,15 +171,18 @@ def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch)
 def test_build_download_options_for_video_uses_mp4_preference() -> None:
     options = build_download_options("video", "C:/Downloads")
 
-    assert options["format"] == "best[ext=mp4]/best"
+    assert options["format"] == "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+    assert options["merge_output_format"] == "mp4"
     assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
     assert "Downloads" in options["outtmpl"]
 
 
-def test_build_download_options_for_audio_uses_best_audio() -> None:
+def test_build_download_options_for_audio_uses_mp3_postprocessor() -> None:
     options = build_download_options("audio", "C:/Downloads")
 
     assert options["format"] == "bestaudio/best"
+    assert options["postprocessors"][0]["key"] == "FFmpegExtractAudio"
+    assert options["postprocessors"][0]["preferredcodec"] == "mp3"
     assert options["outtmpl"].endswith("\\%(title)s.%(ext)s")
     assert "Downloads" in options["outtmpl"]
 
@@ -196,6 +199,21 @@ def test_start_download_calls_ytdlp(mock_ytdl: MagicMock, mock_mkdir: MagicMock)
     assert "C:/Downloads" in message
     downloader.download.assert_called_once_with(["https://example.com/watch?v=123"])
     mock_mkdir.assert_called_once()
+    options = mock_ytdl.call_args.args[0]
+    assert options["merge_output_format"] == "mp4"
+
+
+@patch("src.videosong.services.download_service.Path.mkdir")
+@patch("src.videosong.services.download_service.YoutubeDL")
+def test_start_download_for_audio_uses_mp3_postprocessor(mock_ytdl: MagicMock, _mock_mkdir: MagicMock) -> None:
+    downloader = MagicMock()
+    mock_ytdl.return_value.__enter__.return_value = downloader
+
+    status_kind, _message = start_download("https://example.com/watch?v=123", "audio", "C:/Downloads")
+
+    assert status_kind == "success"
+    options = mock_ytdl.call_args.args[0]
+    assert options["postprocessors"][0]["preferredcodec"] == "mp3"
 
 
 @patch("src.videosong.services.download_service.Path.mkdir")

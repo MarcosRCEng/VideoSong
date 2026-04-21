@@ -11,10 +11,18 @@ def build_download_options(mode: str, destination: str) -> dict[str, object]:
             "format": "bestaudio/best",
             "noplaylist": True,
             "outtmpl": output_template,
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ],
         }
 
     return {
-        "format": "best[ext=mp4]/best",
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+        "merge_output_format": "mp4",
         "noplaylist": True,
         "outtmpl": output_template,
     }

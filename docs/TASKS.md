@@ -97,7 +97,7 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 
 ## Backlog Pos-Projeto
 
-- [ ] Padronizar formatos finais de download para `.mp4` e `.mp3`
+- [x] Padronizar formatos finais de download para `.mp4` e `.mp3`
   dev: ajustar o fluxo para salvar video final em `.mp4` e somente audio final em `.mp3`
   test: validar o comportamento do servico de download e atualizar os testes automatizados
-  commit: pendente
+  commit: aguardando autorizacao
