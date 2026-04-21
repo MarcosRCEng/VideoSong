@@ -6,7 +6,11 @@ from src.videosong.services.download_service import (
     build_download_checklist,
     build_download_plan,
     build_flow_summary,
+    build_mode_guidance,
     build_review_status,
+    build_review_button_label,
+    build_url_guidance,
+    start_download,
 )
 
 
@@ -22,6 +26,9 @@ class MainWindow:
         self.destination_var = tk.StringVar()
         self.checklist_var = tk.StringVar()
         self.summary_var = tk.StringVar()
+        self.url_guidance_var = tk.StringVar()
+        self.mode_guidance_var = tk.StringVar()
+        self.review_button_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Preencha a URL e escolha o formato para preparar o download.")
         self.selected_destination = ""
         self.status_label: ttk.Label | None = None
@@ -39,7 +46,7 @@ class MainWindow:
         ttk.Label(container, text="VideoSong", font=("Segoe UI", 18, "bold")).pack(anchor="w")
         ttk.Label(
             container,
-            text="Cole a URL, escolha entre video e audio e deixe o download pronto para a proxima etapa.",
+            text="Cole a URL, escolha entre video e audio e baixe sem complicacao.",
             wraplength=620,
         ).pack(anchor="w", pady=(4, 16))
 
@@ -51,6 +58,12 @@ class MainWindow:
             text="Cole o link do video que voce quer baixar.",
         ).pack(anchor="w")
         ttk.Entry(url_section, textvariable=self.url_var).pack(fill="x", pady=(8, 0))
+        ttk.Label(
+            url_section,
+            textvariable=self.url_guidance_var,
+            foreground="#555555",
+            wraplength=620,
+        ).pack(anchor="w", pady=(10, 0))
 
         mode_section = ttk.LabelFrame(container, text="2. Formato do download", padding=16)
         mode_section.pack(fill="x", pady=(16, 0))
@@ -73,13 +86,19 @@ class MainWindow:
             value="audio",
             variable=self.mode_var,
         ).pack(anchor="w", pady=(6, 0))
+        ttk.Label(
+            mode_section,
+            textvariable=self.mode_guidance_var,
+            foreground="#555555",
+            wraplength=620,
+        ).pack(anchor="w", pady=(10, 0))
 
         destination_section = ttk.LabelFrame(container, text="3. Pasta de destino", padding=16)
         destination_section.pack(fill="x", pady=(16, 0))
 
         ttk.Label(
             destination_section,
-            text="Escolha a pasta onde o arquivo sera salvo quando o download for integrado.",
+            text="Escolha a pasta onde o arquivo sera salvo.",
             wraplength=620,
         ).pack(anchor="w")
         ttk.Button(destination_section, text="Escolher pasta", command=self._handle_choose_destination).pack(
@@ -103,10 +122,10 @@ class MainWindow:
 
         ttk.Label(
             review_section,
-            text="Confira o resumo acima e valide a preparacao antes de integrar o download real.",
+            text="Confira o resumo acima e inicie o download quando estiver tudo certo.",
             wraplength=620,
         ).pack(anchor="w")
-        ttk.Button(review_section, text="Validar preparacao do download", command=self._handle_download).pack(
+        ttk.Button(review_section, textvariable=self.review_button_var, command=self._handle_download).pack(
             anchor="w", pady=(10, 0)
         )
 
@@ -123,7 +142,10 @@ class MainWindow:
         self.summary_var.set(build_flow_summary(plan))
         self.destination_var.set(build_destination_label(plan))
         self.checklist_var.set(build_download_checklist(plan))
-        self._set_status("Preencha os itens pendentes e valide a preparacao quando estiver tudo certo.")
+        self.url_guidance_var.set(build_url_guidance(plan))
+        self.mode_guidance_var.set(build_mode_guidance(plan))
+        self.review_button_var.set(build_review_button_label(plan))
+        self._set_status("Preencha os itens pendentes e inicie o download quando estiver tudo certo.")
 
     def _handle_choose_destination(self) -> None:
         selected_directory = filedialog.askdirectory(title="Escolher pasta de destino")
@@ -137,11 +159,13 @@ class MainWindow:
 
         self.selected_destination = selected_directory
         self._refresh_flow_summary()
-        self._set_status("Pasta de destino definida. Revise o resumo e valide a preparacao.", tone="success")
+        self._set_status("Pasta de destino definida. Revise o resumo e inicie o download.", tone="success")
 
     def _handle_download(self) -> None:
         plan = build_download_plan(self.url_var.get(), self.mode_var.get(), self.selected_destination)
-        feedback = build_review_status(plan)
+        self._set_status("Iniciando download...", tone="info")
+        self.root.update_idletasks()
+        feedback = start_download(plan)
         self._set_status(feedback.message, tone=feedback.tone)
 
     def _set_status(self, message: str, tone: str = "info") -> None:

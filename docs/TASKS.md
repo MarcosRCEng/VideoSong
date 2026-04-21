@@ -67,10 +67,10 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: etapa visual de pasta adicionada na interface com seletor e resumo atualizado com o destino escolhido
   test: `python -m pytest -q`
   commit: pronto para registrar
-- [-] Integrar `yt-dlp` no servico de download
-  dev: base do servico de download mantida simples, com a interface preparada para validar o fluxo antes da integracao real do `yt-dlp`
+- [x] Integrar `yt-dlp` no servico de download
+  dev: `download_service.py` passou a iniciar downloads reais com `yt-dlp` para video e audio, e a interface passou a acionar esse fluxo diretamente
   test: `.venv\Scripts\python.exe -m pytest -q`
-  commit: aguardando nova entrega da integracao real
+  commit: pronto para registrar
 - [x] Exibir status de sucesso e erro
   dev: mensagens de revisao centralizadas no servico e exibidas na interface com estados visuais de sucesso e erro
   test: `.venv\Scripts\python.exe -m pytest -q`
