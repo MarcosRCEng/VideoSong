@@ -66,8 +66,11 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
 - [x] Implementar escolha de pasta de destino
   dev: interface permite escolher uma pasta local e inclui o destino no resumo e na validacao do fluxo
   test: `python -m pytest -q`
+  commit: realizado na branch `codex/task-escolha-pasta-destino-atual`
+- [x] Integrar `yt-dlp` no servico de download
+  dev: `download_service.py` adicionado e integrado a interface para iniciar o download real com `yt-dlp`
+  test: `python -m pytest -q`
   commit: aguardando autorizacao
-- [ ] Integrar `yt-dlp` no servico de download
 - [x] Exibir status de sucesso e erro
   dev: interface atualizada para destacar URL, formato e feedback visual de sucesso ou erro
   test: `python -m pytest -q`

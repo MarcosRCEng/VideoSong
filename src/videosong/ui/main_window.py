@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 
+from src.videosong.services.download_service import start_download
+
 
 def is_valid_url(value: str) -> bool:
     url = value.strip()
@@ -29,7 +31,7 @@ def build_flow_summary(url: str, mode: str, destination: str) -> str:
     mode_label = "video" if mode == "video" else "audio"
     return (
         f"Passo 3: formato {mode_label} selecionado e pasta definida. "
-        f"O fluxo esta pronto para seguir quando o download for integrado em {destination.strip()}."
+        f"O fluxo esta pronto para iniciar o download em {destination.strip()}."
     )
 
 
@@ -48,7 +50,7 @@ def build_status_feedback(url: str, mode: str, destination: str) -> tuple[str, s
         "success",
         (
             f"Fluxo validado: URL pronta, formato {mode_label} selecionado e destino definido em {destination.strip()}. "
-            "A proxima etapa sera conectar o download real."
+            "Tudo pronto para iniciar o download."
         ),
     )
 
@@ -79,12 +81,12 @@ class MainWindow:
         ttk.Label(container, text="VideoSong", font=("Segoe UI", 18, "bold")).pack(anchor="w")
         ttk.Label(
             container,
-            text="Preencha a URL, escolha entre video completo ou somente audio e valide o fluxo antes da integracao do download.",
+            text="Preencha a URL, escolha entre video completo ou somente audio e prepare o download local.",
         ).pack(anchor="w", pady=(4, 16))
 
         instructions = ttk.Label(
             container,
-            text="Fluxo atual: 1) URL  2) formato  3) validacao local. O download sera conectado em seguida.",
+            text="Fluxo atual: 1) URL  2) formato  3) pasta de destino  4) iniciar download.",
             wraplength=620,
         )
         instructions.pack(anchor="w", pady=(0, 16))
@@ -120,7 +122,7 @@ class MainWindow:
             anchor="w", pady=(0, 12)
         )
 
-        ttk.Button(container, text="Validar URL e formato", command=self._handle_download).pack(anchor="w")
+        ttk.Button(container, text="Iniciar download", command=self._handle_download).pack(anchor="w")
 
         ttk.Separator(container, orient="horizontal").pack(fill="x", pady=16)
         ttk.Label(container, text="Status").pack(anchor="w")
@@ -159,7 +161,16 @@ class MainWindow:
 
     def _handle_download(self) -> None:
         url = self.url_var.get().strip()
-        status_kind, message = build_status_feedback(url, self.mode_var.get(), self.destination_var.get())
+        mode = self.mode_var.get()
+        destination = self.destination_var.get()
+        status_kind, message = build_status_feedback(url, mode, destination)
+
+        if status_kind == "error":
+            self._set_status(status_kind, message)
+            return
+
+        self._set_status("neutral", "Iniciando download...")
+        status_kind, message = start_download(url, mode, destination)
         self._set_status(status_kind, message)
 
     def run(self) -> None:
