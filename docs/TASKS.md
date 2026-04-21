@@ -90,6 +90,10 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: `requirements-dev.txt`, `VideoSong.spec` e `scripts/build_windows.ps1` adicionados com base minima de PyInstaller para gerar `dist\VideoSong.exe`
   test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
   commit: realizado na branch `codex/task-preparar-empacotamento-windows`
+- [x] Atualizar empacotamento Windows com build regenerado
+  dev: `scripts/build_windows.ps1` ajustado para limpar artefatos antigos e regenerar `dist\VideoSong.exe` a partir do estado atual do projeto
+  test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
+  commit: aguardando autorizacao
 - [x] Revisar README com instrucoes finais de uso
   dev: `README.md` atualizado com estado atual do app, fluxo de uso, validacao local e empacotamento Windows
   test: revisao manual do conteudo e `python -m pytest -q`
@@ -101,3 +105,7 @@ Cada tarefa relevante deve ser atualizada em tres momentos quando aplicavel:
   dev: ajustar o fluxo para salvar video final em `.mp4` e somente audio final em `.mp3`
   test: validar o comportamento do servico de download e atualizar os testes automatizados
   commit: aguardando autorizacao
+- [ ] Versionar o executavel `.exe` a cada sprint fechada
+  dev: definir uma convencao para gerar e registrar um `.exe` versionado a cada sprint concluida como marco de evolucao do projeto
+  test: validar a presenca do artefato versionado e atualizar a documentacao do fluxo de release
+  commit: pendente

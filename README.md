@@ -109,6 +109,8 @@ Gerar o executavel localmente:
 
 Saida esperada: `dist\VideoSong.exe`
 
+Observacao: o script limpa `build\` e `dist\` antes de gerar um executavel novo, para evitar residuos de empacotamentos antigos.
+
 Executar o binario gerado:
 
 ```powershell
