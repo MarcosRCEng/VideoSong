@@ -7,10 +7,12 @@ from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
 from src.videosong.services.settings_service import (
     get_last_destination,
+    get_last_mode,
     load_settings,
     resolve_default_destination,
     save_settings,
     set_last_destination,
+    set_last_mode,
 )
 from src.videosong.ui.layout_metrics import (
     DEFAULT_WINDOW_GEOMETRY,
@@ -46,8 +48,8 @@ class MainWindow:
         self.root.minsize(*DEFAULT_WINDOW_MINSIZE)
         self.root.report_callback_exception = self._handle_tk_exception
 
-        initial_mode = "video"
         self.settings = load_settings()
+        initial_mode = self._resolve_initial_mode()
         initial_destination = self._resolve_initial_destination(initial_mode)
         self.state = WizardState(mode=initial_mode, destination=initial_destination)
         self.current_url_var = tk.StringVar()
@@ -73,12 +75,20 @@ class MainWindow:
         self.destination_var.trace_add("write", self._handle_form_change)
         self._render_active_step()
 
+    def _resolve_initial_mode(self) -> str:
+        return get_last_mode(getattr(self, "settings", {})) or "video"
+
     def _resolve_initial_destination(self, mode: str) -> str:
         saved_destination = get_last_destination(getattr(self, "settings", {}))
         if saved_destination:
             return saved_destination
 
         return resolve_default_destination(mode)
+
+    def _persist_selected_mode(self, mode: str) -> None:
+        current_settings = getattr(self, "settings", {})
+        self.settings = set_last_mode(current_settings, mode)
+        save_settings(self.settings)
 
     def _persist_selected_destination(self, destination: str) -> None:
         current_settings = getattr(self, "settings", {})
@@ -140,6 +150,9 @@ class MainWindow:
         previous_mode = self.state.mode
         previous_destination = self.state.destination
         self._sync_state_from_vars()
+
+        if previous_mode != self.state.mode:
+            self._persist_selected_mode(self.state.mode)
 
         previous_default_destination = resolve_default_destination(previous_mode)
         current_default_destination = resolve_default_destination(self.state.mode)

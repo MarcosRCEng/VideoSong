@@ -5,6 +5,7 @@ from typing import Any
 
 DEFAULT_SETTINGS: dict[str, Any] = {}
 LAST_DESTINATION_KEY = "last_destination"
+LAST_MODE_KEY = "last_mode"
 
 
 def get_settings_file_path() -> Path:
@@ -34,9 +35,27 @@ def get_last_destination(settings: dict[str, Any]) -> str | None:
     return normalized_destination
 
 
+def get_last_mode(settings: dict[str, Any]) -> str | None:
+    saved_mode = settings.get(LAST_MODE_KEY)
+    if saved_mode not in {"video", "audio"}:
+        return None
+
+    return saved_mode
+
+
 def set_last_destination(settings: dict[str, Any], destination: str) -> dict[str, Any]:
     updated_settings = dict(settings)
     updated_settings[LAST_DESTINATION_KEY] = destination.strip()
+    return updated_settings
+
+
+def set_last_mode(settings: dict[str, Any], mode: str) -> dict[str, Any]:
+    normalized_mode = mode.strip()
+    if normalized_mode not in {"video", "audio"}:
+        return dict(settings)
+
+    updated_settings = dict(settings)
+    updated_settings[LAST_MODE_KEY] = normalized_mode
     return updated_settings
 
 

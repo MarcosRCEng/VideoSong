@@ -244,10 +244,10 @@ Objetivo: reduzir friccao entre usos do aplicativo.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py tests/test_imports.py`
   commit: realizado na branch `codex/task-sprint4-settings-service`
 
-* [ ] Memorizar ultimo formato usado
-  dev: restaurar configuracao anterior
-  test: persistencia + pytest
-  commit: pendente
+* [x] Memorizar ultimo formato usado
+  dev: `MainWindow` agora salva a ultima escolha entre `video` e `audio` no `settings_service` assim que o formato muda e restaura essa preferencia ao abrir a janela, preservando a logica atual da UI e da pasta padrao inteligente por modo
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py tests/test_wizard_config_steps.py tests/test_imports.py`
+  commit: realizado na branch `codex/task-sprint4-settings-service`
 
 ---
 

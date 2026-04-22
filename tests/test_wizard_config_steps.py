@@ -109,3 +109,27 @@ def test_choose_destination_keeps_existing_value_when_cancelled(monkeypatch) -> 
     assert window.flow_var.get() == previous_summary
     assert window.status_var.get() == "Selecao de pasta cancelada. Escolha um destino para concluir a preparacao."
     assert persisted_destinations == []
+
+
+def test_handle_form_change_persists_last_selected_mode() -> None:
+    window = make_window(active_step_index=0, mode="video", destination="C:/Videos")
+    persisted_modes: list[str] = []
+
+    window.mode_var.set("audio")
+    window._persist_selected_mode = lambda mode: persisted_modes.append(mode)
+
+    window._handle_form_change()
+
+    assert window.state.mode == "audio"
+    assert persisted_modes == ["audio"]
+
+
+def test_handle_form_change_does_not_persist_mode_when_value_did_not_change() -> None:
+    window = make_window(active_step_index=0, mode="audio", destination="C:/Music")
+    persisted_modes: list[str] = []
+    window._persist_selected_mode = lambda mode: persisted_modes.append(mode)
+
+    window._handle_form_change()
+
+    assert window.state.mode == "audio"
+    assert persisted_modes == []
