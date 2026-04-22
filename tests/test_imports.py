@@ -13,6 +13,7 @@ from src.videosong.services.download_service import (
     start_download,
 )
 from src.videosong.services.error_log import get_log_file_path, write_error_log
+from src.videosong.services.settings_service import resolve_default_destination
 from src.videosong.ui import main_window
 from src.videosong.ui.layout_metrics import calculate_wraplength
 from src.videosong.ui.main_window import MainWindow
@@ -244,6 +245,43 @@ def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     assert window.flow_var.get() == build_flow_summary(window.state)
     assert window.review_summary_var.get() == build_review_summary(window.state)
     assert window.destination_label_var.get() == build_destination_label("C:/Downloads")
+
+
+def test_handle_form_change_updates_default_destination_when_mode_changes() -> None:
+    video_default = resolve_default_destination("video")
+    audio_default = resolve_default_destination("audio")
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(mode="video", destination=video_default)
+    window.mode_var = FakeVar("audio")
+    window.destination_var = FakeVar(video_default)
+    window.flow_var = FakeVar()
+    window.review_summary_var = FakeVar()
+    window.destination_label_var = FakeVar()
+    window.urls_label_var = FakeVar()
+
+    window._handle_form_change()
+
+    assert window.state.mode == "audio"
+    assert window.state.destination == audio_default
+    assert window.destination_var.get() == audio_default
+    assert window.destination_label_var.get() == build_destination_label(audio_default)
+
+
+def test_handle_form_change_keeps_manual_destination_when_mode_changes() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(mode="video", destination="C:/Custom")
+    window.mode_var = FakeVar("audio")
+    window.destination_var = FakeVar("C:/Custom")
+    window.flow_var = FakeVar()
+    window.review_summary_var = FakeVar()
+    window.destination_label_var = FakeVar()
+    window.urls_label_var = FakeVar()
+
+    window._handle_form_change()
+
+    assert window.state.mode == "audio"
+    assert window.state.destination == "C:/Custom"
+    assert window.destination_var.get() == "C:/Custom"
 
 
 def test_update_navigation_buttons_reflects_current_step() -> None:

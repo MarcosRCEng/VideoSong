@@ -5,6 +5,7 @@ from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
+from src.videosong.services.settings_service import resolve_default_destination
 from src.videosong.ui.layout_metrics import (
     DEFAULT_WINDOW_GEOMETRY,
     DEFAULT_WINDOW_MINSIZE,
@@ -39,7 +40,9 @@ class MainWindow:
         self.root.minsize(*DEFAULT_WINDOW_MINSIZE)
         self.root.report_callback_exception = self._handle_tk_exception
 
-        self.state = WizardState()
+        initial_mode = "video"
+        initial_destination = resolve_default_destination(initial_mode)
+        self.state = WizardState(mode=initial_mode, destination=initial_destination)
         self.current_url_var = tk.StringVar()
         self.mode_var = tk.StringVar(value=self.state.mode)
         self.destination_var = tk.StringVar(value=self.state.destination)
@@ -115,7 +118,18 @@ class MainWindow:
         self._apply_wraplengths()
 
     def _handle_form_change(self, *_args: object) -> None:
+        previous_mode = self.state.mode
+        previous_destination = self.state.destination
         self._sync_state_from_vars()
+
+        previous_default_destination = resolve_default_destination(previous_mode)
+        current_default_destination = resolve_default_destination(self.state.mode)
+
+        if previous_mode != self.state.mode and previous_destination.strip() == previous_default_destination:
+            self.state.destination = current_default_destination
+            if self.destination_var.get() != current_default_destination:
+                self.destination_var.set(current_default_destination)
+
         self.flow_var.set(build_flow_summary(self.state))
         self.review_summary_var.set(build_review_summary(self.state))
         self.destination_label_var.set(build_destination_label(self.state.destination))

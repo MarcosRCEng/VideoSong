@@ -239,10 +239,10 @@ Objetivo: reduzir friccao entre usos do aplicativo.
   test: persistencia entre execucoes + pytest
   commit: pendente
 
-* [ ] Definir pasta padrao inteligente
-  dev: Videos (video) / Music (audio)
-  test: validacao de fallback + pytest
-  commit: pendente
+* [x] Definir pasta padrao inteligente
+  dev: `settings_service.py` agora resolve a pasta padrao com prioridade para `Videos` no modo `video` e `Music` no modo `audio`, com fallback seguro para a `home`; `MainWindow` passa a iniciar com esse destino e troca entre defaults ao mudar o modo enquanto o usuario ainda nao escolheu uma pasta manual
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py tests/test_imports.py`
+  commit: realizado na branch `codex/task-sprint4-settings-service`
 
 * [ ] Memorizar ultimo formato usado
   dev: restaurar configuracao anterior
