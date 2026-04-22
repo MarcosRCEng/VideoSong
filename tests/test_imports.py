@@ -14,7 +14,8 @@ from src.videosong.services.download_service import (
 )
 from src.videosong.services.error_log import get_log_file_path, write_error_log
 from src.videosong.ui import main_window
-from src.videosong.ui.main_window import MainWindow, build_destination_label, build_flow_summary, build_status_feedback, is_valid_url
+from src.videosong.ui.main_window import MainWindow
+from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary, build_status_feedback, is_valid_url
 from src.videosong.ui.wizard_state import WizardState
 from src.videosong.ui.wizard_steps import WIZARD_STEPS
 
