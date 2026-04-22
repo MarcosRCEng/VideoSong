@@ -203,7 +203,7 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
   test: validacao de selecao + pytest
   commit: pendente
 
-* [ ] Criar etapa de lista de URLs
+* [x] Criar etapa de lista de URLs
   dev: adicionar, remover e listar URLs
   test: validacao de lista e entradas invalidas + pytest
   commit: pendente

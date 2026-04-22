@@ -1,6 +1,6 @@
 from src.videosong.ui import main_window
 from src.videosong.ui.main_window import MainWindow
-from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary
+from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary, build_urls_label
 from src.videosong.ui.wizard_state import WizardState
 
 
@@ -32,50 +32,52 @@ def make_window(
 ) -> MainWindow:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(
-        url=url,
+        urls=[url] if url else [],
         mode=mode,
         destination=destination,
         active_step_index=active_step_index,
     )
-    window.url_var = FakeVar(url)
+    window.current_url_var = FakeVar("")
     window.mode_var = FakeVar(mode)
     window.destination_var = FakeVar(destination)
     window.flow_var = FakeVar(build_flow_summary(window.state))
     window.destination_label_var = FakeVar(build_destination_label(destination))
+    window.urls_label_var = FakeVar(build_urls_label(window.state.urls))
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()
+    window.urls_listbox = None
     window._render_active_step = lambda: None
     return window
 
 
 def test_selected_format_persists_when_navigating_between_steps() -> None:
-    window = make_window(active_step_index=1, mode="audio")
+    window = make_window(active_step_index=0, mode="audio")
 
     window._handle_next()
-    assert window.state.active_step_index == 2
+    assert window.state.active_step_index == 1
     assert window.state.mode == "audio"
 
     window._handle_back()
-    assert window.state.active_step_index == 1
+    assert window.state.active_step_index == 0
     assert window.state.mode == "audio"
     assert window.mode_var.get() == "audio"
 
 
 def test_destination_persists_after_returning_to_previous_step() -> None:
-    window = make_window(active_step_index=2, destination="C:/Downloads")
+    window = make_window(active_step_index=1, destination="C:/Downloads")
 
     window._handle_back()
-    assert window.state.active_step_index == 1
+    assert window.state.active_step_index == 0
     assert window.state.destination == "C:/Downloads"
 
     window._handle_next()
-    assert window.state.active_step_index == 2
+    assert window.state.active_step_index == 1
     assert window.destination_var.get() == "C:/Downloads"
     assert window.state.destination == "C:/Downloads"
 
 
 def test_choose_destination_updates_dedicated_step_state(monkeypatch) -> None:
-    window = make_window(active_step_index=2, mode="audio")
+    window = make_window(active_step_index=1, mode="audio")
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "C:/Music")
 
@@ -88,7 +90,7 @@ def test_choose_destination_updates_dedicated_step_state(monkeypatch) -> None:
 
 
 def test_choose_destination_keeps_existing_value_when_cancelled(monkeypatch) -> None:
-    window = make_window(active_step_index=2, destination="C:/Existing")
+    window = make_window(active_step_index=1, destination="C:/Existing")
     previous_summary = window.flow_var.get()
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "")

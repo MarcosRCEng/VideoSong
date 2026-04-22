@@ -116,7 +116,7 @@ def test_wizard_state_clamps_step_index() -> None:
 
 
 def test_build_flow_summary_requires_url_first() -> None:
-    assert build_flow_summary(WizardState()) == "Passo 1: cole a URL do video para liberar a validacao do fluxo."
+    assert build_flow_summary(WizardState()) == "Passo 2: formato selecionado. Escolha a pasta de destino para concluir a preparacao."
 
 
 def test_is_valid_url_accepts_http_and_https() -> None:
@@ -134,25 +134,30 @@ def test_is_valid_url_rejects_blank_value() -> None:
 
 
 def test_build_flow_summary_requires_complete_url() -> None:
-    state = WizardState(url="example.com/video")
+    state = WizardState(destination="C:/Downloads")
 
-    assert build_flow_summary(state) == "Passo 1: use uma URL completa com http:// ou https:// para continuar."
+    assert (
+        build_flow_summary(state)
+        == "Passo 3: pasta definida em C:/Downloads. Adicione ao menos uma URL valida para liberar a revisao final."
+    )
 
 
 def test_build_flow_summary_requests_destination_before_completion() -> None:
-    state = WizardState(url="https://example.com/watch?v=123", mode="video")
+    state = WizardState(mode="video")
 
     assert (
-        build_flow_summary(state) == "Passo 3: formato selecionado. Escolha a pasta de destino para concluir a preparacao."
+        build_flow_summary(state) == "Passo 2: formato selecionado. Escolha a pasta de destino para concluir a preparacao."
     )
 
 
 def test_build_flow_summary_describes_audio_flow_with_destination() -> None:
-    summary = build_flow_summary(WizardState(url="https://example.com/watch?v=123", mode="audio", destination="C:/Downloads"))
+    summary = build_flow_summary(
+        WizardState(urls=["https://example.com/watch?v=123"], mode="audio", destination="C:/Downloads")
+    )
 
     assert "formato audio" in summary
-    assert "C:/Downloads" in summary
-    assert "iniciar o download" in summary
+    assert "primeira URL da lista" in summary
+    assert "https://example.com/watch?v=123" in summary
 
 
 def test_build_destination_label_describes_selected_folder() -> None:
@@ -160,22 +165,25 @@ def test_build_destination_label_describes_selected_folder() -> None:
 
 
 def test_build_destination_label_requires_selection() -> None:
-    assert build_destination_label("") == "Passo 3: escolha uma pasta de destino para concluir a preparacao do fluxo."
+    assert build_destination_label("") == "Passo 2: escolha uma pasta de destino para concluir a preparacao do fluxo."
 
 
 def test_build_status_feedback_returns_error_without_url() -> None:
-    assert build_status_feedback(WizardState(mode="audio")) == ("error", "Erro: informe uma URL antes de continuar.")
+    assert build_status_feedback(WizardState(mode="audio")) == (
+        "error",
+        "Erro: escolha uma pasta de destino antes de continuar.",
+    )
 
 
 def test_build_status_feedback_returns_error_with_invalid_url() -> None:
-    assert build_status_feedback(WizardState(url="example.com/video", mode="audio")) == (
+    assert build_status_feedback(WizardState(destination="C:/Downloads", mode="audio")) == (
         "error",
-        "Erro: use uma URL valida com http:// ou https://.",
+        "Erro: adicione ao menos uma URL valida antes de continuar.",
     )
 
 
 def test_build_status_feedback_requires_destination() -> None:
-    assert build_status_feedback(WizardState(url="https://example.com/watch?v=123", mode="audio")) == (
+    assert build_status_feedback(WizardState(urls=["https://example.com/watch?v=123"], mode="audio")) == (
         "error",
         "Erro: escolha uma pasta de destino antes de continuar.",
     )
@@ -183,17 +191,19 @@ def test_build_status_feedback_requires_destination() -> None:
 
 def test_build_status_feedback_returns_success_with_url() -> None:
     status_kind, message = build_status_feedback(
-        WizardState(url="https://example.com/watch?v=123", mode="audio", destination="C:/Downloads")
+        WizardState(urls=["https://example.com/watch?v=123"], mode="audio", destination="C:/Downloads")
     )
 
     assert status_kind == "success"
     assert "audio" in message
     assert "C:/Downloads" in message
-    assert "Tudo pronto para iniciar o download." in message
+    assert "primeira URL da lista" in message
 
 
 def test_build_status_feedback_returns_success_for_video_mode() -> None:
-    message = build_status_feedback(WizardState(url="https://example.com/watch?v=123", mode="video", destination="C:/Media"))[1]
+    message = build_status_feedback(
+        WizardState(urls=["https://example.com/watch?v=123"], mode="video", destination="C:/Media")
+    )[1]
 
     assert "formato video" in message
     assert "C:/Media" in message
@@ -202,15 +212,14 @@ def test_build_status_feedback_returns_success_for_video_mode() -> None:
 def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState()
-    window.url_var = FakeVar("https://example.com/watch?v=123")
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
     window.flow_var = FakeVar()
     window.destination_label_var = FakeVar()
+    window.urls_label_var = FakeVar()
 
     window._handle_form_change()
 
-    assert window.state.url == "https://example.com/watch?v=123"
     assert window.state.mode == "audio"
     assert window.state.destination == "C:/Downloads"
     assert window.flow_var.get() == build_flow_summary(window.state)
@@ -274,27 +283,27 @@ def test_render_active_step_updates_header_and_clears_previous_widgets() -> None
     window.next_button = FakeButton()
     window.download_button = FakeButton()
     called = {"builder": None}
-    window._build_url_step = lambda *_args: called.update(builder="url")
     window._build_format_step = lambda *_args: called.update(builder="format")
     window._build_destination_step = lambda *_args: called.update(builder="destination")
+    window._build_urls_step = lambda *_args: called.update(builder="urls")
     window._build_review_step = lambda *_args: called.update(builder="review")
 
     window._render_active_step()
 
     assert old_child.destroyed is True
-    assert window.step_title_var.get() == "Passo 3 - Pasta de destino"
+    assert window.step_title_var.get() == "Passo 3 - Lista de URLs"
     assert "Etapas:" in window.step_progress_var.get()
-    assert called["builder"] == "destination"
+    assert called["builder"] == "urls"
 
 
 def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
-    window.state = WizardState(url="https://example.com/watch?v=123", mode="video")
-    window.url_var = FakeVar("https://example.com/watch?v=123")
+    window.state = WizardState(mode="video")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("")
     window.destination_label_var = FakeVar("")
     window.flow_var = FakeVar("")
+    window.urls_label_var = FakeVar("")
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()
 
@@ -310,12 +319,12 @@ def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> No
 
 def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
-    window.state = WizardState(url="https://example.com/watch?v=123", mode="video", destination="C:/Existing")
-    window.url_var = FakeVar("https://example.com/watch?v=123")
+    window.state = WizardState(mode="video", destination="C:/Existing")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Existing")
     window.destination_label_var = FakeVar(build_destination_label("C:/Existing"))
     window.flow_var = FakeVar("resumo atual")
+    window.urls_label_var = FakeVar("")
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()
 
@@ -521,7 +530,6 @@ def test_start_download_returns_guidance_when_ffmpeg_tools_are_missing() -> None
 def test_handle_download_stops_when_validation_fails() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState()
-    window.url_var = FakeVar("")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Downloads")
     window.status_var = FakeVar()
@@ -529,13 +537,12 @@ def test_handle_download_stops_when_validation_fails() -> None:
 
     window._handle_download()
 
-    assert window.status_var.get() == "Erro: informe uma URL antes de continuar."
+    assert window.status_var.get() == "Erro: adicione ao menos uma URL valida antes de continuar."
 
 
 def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
-    window.state = WizardState()
-    window.url_var = FakeVar("https://example.com/watch?v=123")
+    window.state = WizardState(urls=["https://example.com/watch?v=123"])
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
     window.status_var = FakeVar()
@@ -547,6 +554,32 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
 
     assert window.status_var.get() == "baixado audio em C:/Downloads"
     assert window.status_label.fg == "#1f6f43"
+
+
+def test_handle_download_uses_first_url_from_list(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(urls=["https://example.com/first", "https://example.com/second"])
+    window.mode_var = FakeVar("video")
+    window.destination_var = FakeVar("C:/Downloads")
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    captured: dict[str, str] = {}
+
+    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+        captured["url"] = url
+        captured["mode"] = mode
+        captured["destination"] = destination
+        return ("success", "ok")
+
+    monkeypatch.setattr(main_window, "start_download", fake_start_download)
+
+    window._handle_download()
+
+    assert captured == {
+        "url": "https://example.com/first",
+        "mode": "video",
+        "destination": "C:/Downloads",
+    }
 
 
 def test_set_status_updates_message_and_success_color() -> None:

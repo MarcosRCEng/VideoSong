@@ -5,11 +5,12 @@ from tkinter import filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
+from src.videosong.ui.url_list_manager import add_url, remove_url
 from src.videosong.ui.wizard_messages import (
     build_destination_label,
     build_flow_summary,
     build_status_feedback,
-    is_valid_url,
+    build_urls_label,
 )
 from src.videosong.ui.wizard_state import WizardState
 from src.videosong.ui.wizard_steps import WIZARD_STEPS, WizardStep
@@ -24,7 +25,7 @@ class MainWindow:
         self.root.report_callback_exception = self._handle_tk_exception
 
         self.state = WizardState()
-        self.url_var = tk.StringVar(value=self.state.url)
+        self.current_url_var = tk.StringVar()
         self.mode_var = tk.StringVar(value=self.state.mode)
         self.destination_var = tk.StringVar(value=self.state.destination)
         self.step_title_var = tk.StringVar()
@@ -32,11 +33,12 @@ class MainWindow:
         self.step_progress_var = tk.StringVar()
         self.destination_label_var = tk.StringVar(value=build_destination_label(""))
         self.flow_var = tk.StringVar(value=build_flow_summary(self.state))
-        self.status_var = tk.StringVar(value="Status inicial: informe uma URL valida e confirme se quer video ou audio.")
+        self.urls_label_var = tk.StringVar(value=build_urls_label(self.state.urls))
+        self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
+        self.urls_listbox: tk.Listbox | None = None
 
         self._build()
-        self.url_var.trace_add("write", self._handle_form_change)
         self.mode_var.trace_add("write", self._handle_form_change)
         self.destination_var.trace_add("write", self._handle_form_change)
         self._render_active_step()
@@ -84,9 +86,9 @@ class MainWindow:
         self._sync_state_from_vars()
         self.flow_var.set(build_flow_summary(self.state))
         self.destination_label_var.set(build_destination_label(self.state.destination))
+        self.urls_label_var.set(build_urls_label(self.state.urls))
 
     def _sync_state_from_vars(self) -> None:
-        self.state.url = self.url_var.get()
         self.state.mode = self.mode_var.get()
         self.state.destination = self.destination_var.get()
 
@@ -104,22 +106,13 @@ class MainWindow:
             child.destroy()
 
         builders: dict[str, Callable[[ttk.Frame, WizardStep], None]] = {
-            "url": self._build_url_step,
             "format": self._build_format_step,
             "destination": self._build_destination_step,
+            "urls": self._build_urls_step,
             "review": self._build_review_step,
         }
         builders[step.key](self.step_container, step)
         self._update_navigation_buttons()
-
-    def _build_url_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
-        ttk.Entry(parent, textvariable=self.url_var).pack(fill="x", pady=(4, 12))
-        ttk.Label(
-            parent,
-            text="Use uma URL completa, por exemplo: https://site.com/video",
-            foreground="#555555",
-            wraplength=620,
-        ).pack(anchor="w")
 
     def _build_format_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
         modes = ttk.Frame(parent)
@@ -137,9 +130,32 @@ class MainWindow:
         ttk.Button(parent, text="Escolher pasta", command=self._handle_choose_destination).pack(anchor="w", pady=(4, 8))
         ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555", wraplength=620).pack(anchor="w")
 
+    def _build_urls_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
+        input_row = ttk.Frame(parent)
+        input_row.pack(fill="x", pady=(4, 8))
+        ttk.Entry(input_row, textvariable=self.current_url_var).pack(side="left", fill="x", expand=True)
+        ttk.Button(input_row, text="Adicionar URL", command=self._handle_add_url).pack(side="left", padx=(8, 0))
+
+        ttk.Label(
+            parent,
+            text="Adicione uma URL por vez com http:// ou https://. A colagem multipla continua fora do escopo desta sprint.",
+            foreground="#555555",
+            wraplength=620,
+        ).pack(anchor="w", pady=(0, 8))
+
+        self.urls_listbox = tk.Listbox(parent, height=7, exportselection=False)
+        self.urls_listbox.pack(fill="both", expand=True, pady=(0, 8))
+        self._refresh_urls_listbox()
+
+        actions = ttk.Frame(parent)
+        actions.pack(fill="x")
+        ttk.Button(actions, text="Remover selecionada", command=self._handle_remove_url).pack(side="left")
+        ttk.Label(actions, textvariable=self.urls_label_var, foreground="#555555").pack(side="left", padx=(12, 0))
+
     def _build_review_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
         ttk.Label(parent, text="Resumo do fluxo").pack(anchor="w")
         ttk.Label(parent, textvariable=self.flow_var, wraplength=620).pack(anchor="w", pady=(4, 12))
+        ttk.Label(parent, textvariable=self.urls_label_var, foreground="#555555", wraplength=620).pack(anchor="w", pady=(0, 8))
         ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555", wraplength=620).pack(anchor="w")
 
     def _update_navigation_buttons(self) -> None:
@@ -165,6 +181,41 @@ class MainWindow:
         self.destination_var.set(selected_directory)
         self._handle_form_change()
         self._set_status("neutral", "Pasta de destino definida. Revise o resumo e valide o fluxo.")
+
+    def _refresh_urls_listbox(self) -> None:
+        if self.urls_listbox is None:
+            return
+
+        self.urls_listbox.delete(0, tk.END)
+        for url in self.state.urls:
+            self.urls_listbox.insert(tk.END, url)
+
+    def _handle_add_url(self) -> None:
+        updated_urls, error = add_url(self.state.urls, self.current_url_var.get())
+
+        if error:
+            self._set_status("error", error)
+            return
+
+        self.state.urls = updated_urls
+        self.current_url_var.set("")
+        self._handle_form_change()
+        self._refresh_urls_listbox()
+        self._set_status("neutral", f"URL adicionada. Lista atual com {len(self.state.urls)} item(ns).")
+
+    def _handle_remove_url(self) -> None:
+        if self.urls_listbox is None:
+            return
+
+        selection = self.urls_listbox.curselection()
+        if not selection:
+            self._set_status("error", "Erro: selecione uma URL da lista para remover.")
+            return
+
+        self.state.urls = remove_url(self.state.urls, selection[0])
+        self._handle_form_change()
+        self._refresh_urls_listbox()
+        self._set_status("neutral", f"URL removida. Lista atual com {len(self.state.urls)} item(ns).")
 
     def _set_status(self, status_kind: str, message: str) -> None:
         colors = {
@@ -197,7 +248,7 @@ class MainWindow:
             return
 
         self._set_status("neutral", "Iniciando download...")
-        status_kind, message = start_download(self.state.url.strip(), self.state.mode, self.state.destination)
+        status_kind, message = start_download(self.state.primary_url, self.state.mode, self.state.destination)
         self._set_status(status_kind, message)
 
     def run(self) -> None:
