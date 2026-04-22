@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.videosong.ui.wizard_steps import WIZARD_STEPS, WizardStep
 
 
 @dataclass(slots=True)
 class WizardState:
-    url: str = ""
+    urls: list[str] = field(default_factory=list)
     mode: str = "video"
     destination: str = ""
     active_step_index: int = 0
@@ -15,6 +15,13 @@ class WizardState:
     @property
     def active_step(self) -> WizardStep:
         return WIZARD_STEPS[self.active_step_index]
+
+    @property
+    def primary_url(self) -> str:
+        if not self.urls:
+            return ""
+
+        return self.urls[0]
 
     def can_go_back(self) -> bool:
         return self.active_step_index > 0

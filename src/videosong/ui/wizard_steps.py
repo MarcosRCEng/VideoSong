@@ -14,21 +14,21 @@ class WizardStep:
 WIZARD_STEPS: tuple[WizardStep, ...] = (
     WizardStep(
         index=0,
-        key="url",
-        title="Passo 1 - URL do video",
-        description="Cole uma URL completa para preparar o fluxo do download.",
-    ),
-    WizardStep(
-        index=1,
         key="format",
-        title="Passo 2 - Formato",
+        title="Passo 1 - Formato",
         description="Escolha entre video completo ou somente audio.",
     ),
     WizardStep(
-        index=2,
+        index=1,
         key="destination",
-        title="Passo 3 - Pasta de destino",
+        title="Passo 2 - Pasta de destino",
         description="Selecione a pasta em que o arquivo sera salvo.",
+    ),
+    WizardStep(
+        index=2,
+        key="urls",
+        title="Passo 3 - Lista de URLs",
+        description="Adicione uma URL por vez para montar a lista desta execucao.",
     ),
     WizardStep(
         index=3,
