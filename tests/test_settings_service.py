@@ -2,7 +2,15 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from src.videosong.services.settings_service import load_settings, resolve_default_destination, save_settings
+from src.videosong.services.settings_service import (
+    get_last_destination,
+    get_last_mode,
+    load_settings,
+    resolve_default_destination,
+    save_settings,
+    set_last_destination,
+    set_last_mode,
+)
 
 
 def make_test_directory() -> Path:
@@ -36,6 +44,61 @@ def test_load_settings_falls_back_to_empty_dict_for_invalid_json() -> None:
     settings_path.write_text("{invalid json", encoding="utf-8")
 
     assert load_settings(settings_path) == {}
+
+
+def test_get_last_destination_returns_none_for_missing_or_invalid_value() -> None:
+    assert get_last_destination({}) is None
+    assert get_last_destination({"last_destination": ""}) is None
+    assert get_last_destination({"last_destination": "   "}) is None
+    assert get_last_destination({"last_destination": 123}) is None
+
+
+def test_get_last_destination_returns_trimmed_saved_path() -> None:
+    assert get_last_destination({"last_destination": "  C:/Downloads  "}) == "C:/Downloads"
+
+
+def test_get_last_mode_returns_none_for_missing_or_invalid_value() -> None:
+    assert get_last_mode({}) is None
+    assert get_last_mode({"last_mode": ""}) is None
+    assert get_last_mode({"last_mode": "mp3"}) is None
+    assert get_last_mode({"last_mode": 123}) is None
+
+
+def test_get_last_mode_returns_saved_video_or_audio_value() -> None:
+    assert get_last_mode({"last_mode": "video"}) == "video"
+    assert get_last_mode({"last_mode": "audio"}) == "audio"
+
+
+def test_set_last_destination_updates_settings_copy_and_persists_with_load() -> None:
+    test_directory = make_test_directory()
+    settings_path = test_directory / "settings.json"
+    original_settings = {"mode": "audio"}
+
+    updated_settings = set_last_destination(original_settings, "  C:/Music  ")
+    save_settings(updated_settings, settings_path)
+
+    assert updated_settings == {"mode": "audio", "last_destination": "C:/Music"}
+    assert original_settings == {"mode": "audio"}
+    assert get_last_destination(load_settings(settings_path)) == "C:/Music"
+
+
+def test_set_last_mode_updates_settings_copy_and_persists_with_load() -> None:
+    test_directory = make_test_directory()
+    settings_path = test_directory / "settings.json"
+    original_settings = {"last_destination": "C:/Media"}
+
+    updated_settings = set_last_mode(original_settings, " audio ")
+    save_settings(updated_settings, settings_path)
+
+    assert updated_settings == {"last_destination": "C:/Media", "last_mode": "audio"}
+    assert original_settings == {"last_destination": "C:/Media"}
+    assert get_last_mode(load_settings(settings_path)) == "audio"
+
+
+def test_set_last_mode_ignores_unknown_modes() -> None:
+    settings = {"last_destination": "C:/Media"}
+
+    assert set_last_mode(settings, "playlist") == settings
 
 
 def test_resolve_default_destination_prefers_videos_for_video_mode() -> None:

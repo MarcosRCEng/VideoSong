@@ -231,12 +231,14 @@ def test_build_status_feedback_returns_success_for_video_mode() -> None:
 def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState()
+    window.settings = {}
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
     window.flow_var = FakeVar()
     window.review_summary_var = FakeVar()
     window.destination_label_var = FakeVar()
     window.urls_label_var = FakeVar()
+    window._persist_selected_mode = lambda mode: None
 
     window._handle_form_change()
 
@@ -252,12 +254,14 @@ def test_handle_form_change_updates_default_destination_when_mode_changes() -> N
     audio_default = resolve_default_destination("audio")
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(mode="video", destination=video_default)
+    window.settings = {}
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar(video_default)
     window.flow_var = FakeVar()
     window.review_summary_var = FakeVar()
     window.destination_label_var = FakeVar()
     window.urls_label_var = FakeVar()
+    window._persist_selected_mode = lambda mode: None
 
     window._handle_form_change()
 
@@ -270,18 +274,80 @@ def test_handle_form_change_updates_default_destination_when_mode_changes() -> N
 def test_handle_form_change_keeps_manual_destination_when_mode_changes() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(mode="video", destination="C:/Custom")
+    window.settings = {}
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Custom")
     window.flow_var = FakeVar()
     window.review_summary_var = FakeVar()
     window.destination_label_var = FakeVar()
     window.urls_label_var = FakeVar()
+    window._persist_selected_mode = lambda mode: None
 
     window._handle_form_change()
 
     assert window.state.mode == "audio"
     assert window.state.destination == "C:/Custom"
     assert window.destination_var.get() == "C:/Custom"
+
+
+def test_resolve_initial_destination_prefers_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"last_destination": "C:/Saved"}
+
+    assert window._resolve_initial_destination("video") == "C:/Saved"
+
+
+def test_resolve_initial_mode_prefers_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"last_mode": "audio"}
+
+    assert window._resolve_initial_mode() == "audio"
+
+
+def test_resolve_initial_mode_falls_back_to_video_without_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {}
+
+    assert window._resolve_initial_mode() == "video"
+
+
+def test_resolve_initial_destination_falls_back_to_intelligent_default_without_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {}
+
+    assert window._resolve_initial_destination("audio") == resolve_default_destination("audio")
+
+
+def test_persist_selected_destination_updates_settings_and_saves(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"mode": "video"}
+    captured: dict[str, object] = {}
+
+    def fake_save_settings(settings: dict[str, object]) -> None:
+        captured["settings"] = dict(settings)
+
+    monkeypatch.setattr(main_window, "save_settings", fake_save_settings)
+
+    window._persist_selected_destination("  C:/Downloads  ")
+
+    assert window.settings == {"mode": "video", "last_destination": "C:/Downloads"}
+    assert captured["settings"] == {"mode": "video", "last_destination": "C:/Downloads"}
+
+
+def test_persist_selected_mode_updates_settings_and_saves(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"last_destination": "C:/Downloads"}
+    captured: dict[str, object] = {}
+
+    def fake_save_settings(settings: dict[str, object]) -> None:
+        captured["settings"] = dict(settings)
+
+    monkeypatch.setattr(main_window, "save_settings", fake_save_settings)
+
+    window._persist_selected_mode("audio")
+
+    assert window.settings == {"last_destination": "C:/Downloads", "last_mode": "audio"}
+    assert captured["settings"] == {"last_destination": "C:/Downloads", "last_mode": "audio"}
 
 
 def test_update_navigation_buttons_reflects_current_step() -> None:
@@ -405,6 +471,7 @@ def test_handle_resize_uses_event_width_for_root_events() -> None:
 def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(mode="video")
+    window.settings = {}
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("")
     window.destination_label_var = FakeVar("")
@@ -415,6 +482,7 @@ def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> No
     window.status_label = FakeLabel()
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "C:/Downloads")
+    monkeypatch.setattr(main_window, "save_settings", lambda settings: None)
 
     window._handle_choose_destination()
 
