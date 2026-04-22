@@ -213,9 +213,9 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
   test: validacao de multiplas entradas, duplicidades e integracao da colagem em lote + `python -m pytest -q` via `.venv`
   commit: pendente
 
-* [ ] Criar etapa de revisao e execucao
-  dev: resumo da configuracao e quantidade de itens
-  test: validacao do resumo + pytest
+* [x] Criar etapa de revisao e execucao
+  dev: resumo final com formato, pasta, quantidade de URLs, estado pronto para execucao e disparo minimo preservando o servico atual pela primeira URL
+  test: resumo final, bloqueio de avance sem pasta/URLs obrigatorias + `python -m pytest -q`
   commit: pendente
 
 * [ ] Corrigir responsividade da janela

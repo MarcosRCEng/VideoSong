@@ -15,7 +15,8 @@ from src.videosong.services.download_service import (
 from src.videosong.services.error_log import get_log_file_path, write_error_log
 from src.videosong.ui import main_window
 from src.videosong.ui.main_window import MainWindow
-from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary, build_status_feedback, is_valid_url
+from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary, is_valid_url
+from src.videosong.ui.wizard_review import build_review_summary, build_status_feedback
 from src.videosong.ui.wizard_state import WizardState
 from src.videosong.ui.wizard_steps import WIZARD_STEPS
 
@@ -215,6 +216,7 @@ def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
     window.flow_var = FakeVar()
+    window.review_summary_var = FakeVar()
     window.destination_label_var = FakeVar()
     window.urls_label_var = FakeVar()
 
@@ -223,6 +225,7 @@ def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     assert window.state.mode == "audio"
     assert window.state.destination == "C:/Downloads"
     assert window.flow_var.get() == build_flow_summary(window.state)
+    assert window.review_summary_var.get() == build_review_summary(window.state)
     assert window.destination_label_var.get() == build_destination_label("C:/Downloads")
 
 
@@ -239,12 +242,30 @@ def test_update_navigation_buttons_reflects_current_step() -> None:
     assert window.next_button.state == "normal"
     assert window.download_button.state == "disabled"
 
-    window.state.set_active_step(len(WIZARD_STEPS) - 1)
+    window.state = WizardState(
+        urls=["https://example.com/watch?v=123"],
+        destination="C:/Downloads",
+        active_step_index=len(WIZARD_STEPS) - 1,
+    )
     window._update_navigation_buttons()
 
     assert window.back_button.state == "normal"
     assert window.next_button.state == "disabled"
     assert window.download_button.state == "normal"
+
+
+def test_update_navigation_buttons_blocks_next_without_required_data() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(active_step_index=1)
+    window.back_button = FakeButton()
+    window.next_button = FakeButton()
+    window.download_button = FakeButton()
+
+    window._update_navigation_buttons()
+
+    assert window.back_button.state == "normal"
+    assert window.next_button.state == "disabled"
+    assert window.download_button.state == "disabled"
 
 
 def test_handle_next_advances_step_and_rerenders() -> None:
@@ -303,6 +324,7 @@ def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> No
     window.destination_var = FakeVar("")
     window.destination_label_var = FakeVar("")
     window.flow_var = FakeVar("")
+    window.review_summary_var = FakeVar("")
     window.urls_label_var = FakeVar("")
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()
@@ -324,6 +346,7 @@ def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch)
     window.destination_var = FakeVar("C:/Existing")
     window.destination_label_var = FakeVar(build_destination_label("C:/Existing"))
     window.flow_var = FakeVar("resumo atual")
+    window.review_summary_var = FakeVar(build_review_summary(window.state))
     window.urls_label_var = FakeVar("")
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()

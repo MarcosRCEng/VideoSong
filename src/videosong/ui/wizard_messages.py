@@ -39,20 +39,3 @@ def build_flow_summary(state: WizardState) -> str:
         f"Passo 4: formato {mode_label} selecionado, pasta definida em {destination} e {len(state.urls)} URL(s) pronta(s). "
         f"Nesta sprint, o download sera iniciado pela primeira URL da lista: {first_url}."
     )
-
-
-def build_status_feedback(state: WizardState) -> tuple[str, str]:
-    if not state.destination.strip():
-        return ("error", "Erro: escolha uma pasta de destino antes de continuar.")
-
-    if not state.urls:
-        return ("error", "Erro: adicione ao menos uma URL valida antes de continuar.")
-
-    mode_label = "video" if state.mode == "video" else "audio"
-    return (
-        "success",
-        (
-            f"Fluxo validado: {len(state.urls)} URL(s) pronta(s), formato {mode_label} selecionado e destino definido em {state.destination.strip()}. "
-            f"Nesta sprint, tudo pronto para iniciar o download pela primeira URL da lista: {state.primary_url}."
-        ),
-    )

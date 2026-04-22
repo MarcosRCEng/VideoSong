@@ -14,8 +14,13 @@ from src.videosong.ui.url_list_manager import add_url, remove_url
 from src.videosong.ui.wizard_messages import (
     build_destination_label,
     build_flow_summary,
-    build_status_feedback,
     build_urls_label,
+)
+from src.videosong.ui.wizard_review import (
+    build_review_summary,
+    build_status_feedback,
+    can_advance_from_step,
+    get_next_step_blocker,
 )
 from src.videosong.ui.wizard_state import WizardState
 from src.videosong.ui.wizard_steps import WIZARD_STEPS, WizardStep
@@ -38,6 +43,7 @@ class MainWindow:
         self.step_progress_var = tk.StringVar()
         self.destination_label_var = tk.StringVar(value=build_destination_label(""))
         self.flow_var = tk.StringVar(value=build_flow_summary(self.state))
+        self.review_summary_var = tk.StringVar(value=build_review_summary(self.state))
         self.urls_label_var = tk.StringVar(value=build_urls_label(self.state.urls))
         self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
@@ -91,6 +97,7 @@ class MainWindow:
     def _handle_form_change(self, *_args: object) -> None:
         self._sync_state_from_vars()
         self.flow_var.set(build_flow_summary(self.state))
+        self.review_summary_var.set(build_review_summary(self.state))
         self.destination_label_var.set(build_destination_label(self.state.destination))
         self.urls_label_var.set(build_urls_label(self.state.urls))
 
@@ -166,13 +173,12 @@ class MainWindow:
 
     def _build_review_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
         ttk.Label(parent, text="Resumo do fluxo").pack(anchor="w")
-        ttk.Label(parent, textvariable=self.flow_var, wraplength=620).pack(anchor="w", pady=(4, 12))
-        ttk.Label(parent, textvariable=self.urls_label_var, foreground="#555555", wraplength=620).pack(anchor="w", pady=(0, 8))
-        ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555", wraplength=620).pack(anchor="w")
+        ttk.Label(parent, textvariable=self.review_summary_var, justify="left", wraplength=620).pack(anchor="w", pady=(4, 12))
+        ttk.Label(parent, textvariable=self.flow_var, foreground="#555555", wraplength=620).pack(anchor="w")
 
     def _update_navigation_buttons(self) -> None:
         self.back_button.configure(state="normal" if self.state.can_go_back() else "disabled")
-        self.next_button.configure(state="normal" if self.state.can_go_next() else "disabled")
+        self.next_button.configure(state="normal" if self.state.can_go_next() and can_advance_from_step(self.state) else "disabled")
         self.download_button.configure(state="normal" if self.state.active_step.key == "review" else "disabled")
 
     def _handle_back(self) -> None:
@@ -180,6 +186,11 @@ class MainWindow:
             self._render_active_step()
 
     def _handle_next(self) -> None:
+        blocker = get_next_step_blocker(self.state)
+        if blocker:
+            self._set_status("error", blocker)
+            return
+
         if self.state.go_next():
             self._render_active_step()
 

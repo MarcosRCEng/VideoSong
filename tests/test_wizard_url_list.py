@@ -13,6 +13,7 @@ from src.videosong.ui.url_list_manager import (
     validate_url_to_add,
 )
 from src.videosong.ui.wizard_messages import build_flow_summary, build_urls_label
+from src.videosong.ui.wizard_review import build_review_summary
 from src.videosong.ui.wizard_state import WizardState
 
 
@@ -68,6 +69,7 @@ def make_window(*, urls: list[str] | None = None, destination: str = "C:/Downloa
     window.mode_var = FakeVar(mode)
     window.destination_var = FakeVar(destination)
     window.flow_var = FakeVar(build_flow_summary(window.state))
+    window.review_summary_var = FakeVar(build_review_summary(window.state))
     window.urls_label_var = FakeVar(build_urls_label(window.state.urls))
     window.destination_label_var = FakeVar("")
     window.status_var = FakeVar("")
