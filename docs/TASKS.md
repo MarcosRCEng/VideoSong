@@ -218,9 +218,9 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
   test: resumo final, bloqueio de avance sem pasta/URLs obrigatorias + `python -m pytest -q`
   commit: pendente
 
-* [ ] Corrigir responsividade da janela
-  dev: ajustar layout (grid), dimensoes e comportamento de resize
-  test: execucao em diferentes resolucoes + pytest
+* [x] Corrigir responsividade da janela
+  dev: reorganizar a shell da janela com `grid`, ajustar `geometry`/`minsize`, distribuir pesos com `columnconfigure`/`rowconfigure` e recalcular `wraplength` no resize para reduzir cortes visuais nas etapas do wizard
+  test: cobertura de wrap responsivo + `python -m pytest -q` e validacao manual em tamanhos reduzidos/redimensionamento da janela
   commit: pendente
 
 ---

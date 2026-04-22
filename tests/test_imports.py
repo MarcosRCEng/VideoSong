@@ -14,6 +14,7 @@ from src.videosong.services.download_service import (
 )
 from src.videosong.services.error_log import get_log_file_path, write_error_log
 from src.videosong.ui import main_window
+from src.videosong.ui.layout_metrics import calculate_wraplength
 from src.videosong.ui.main_window import MainWindow
 from src.videosong.ui.wizard_messages import build_destination_label, build_flow_summary, is_valid_url
 from src.videosong.ui.wizard_review import build_review_summary, build_status_feedback
@@ -62,6 +63,22 @@ class FakeContainer:
 
     def winfo_children(self) -> list[FakeChild]:
         return self.children
+
+
+class FakeRoot:
+    def __init__(self, width: int = 800) -> None:
+        self.width = width
+
+    def winfo_width(self) -> int:
+        return self.width
+
+
+class FakeWrapWidget:
+    def __init__(self) -> None:
+        self.wraplength = None
+
+    def configure(self, *, wraplength: int) -> None:
+        self.wraplength = wraplength
 
 
 def test_run_symbol_exists() -> None:
@@ -298,6 +315,8 @@ def test_render_active_step_updates_header_and_clears_previous_widgets() -> None
     window.step_progress_var = FakeVar()
     window.step_title_var = FakeVar()
     window.step_description_var = FakeVar()
+    window._wrap_widgets = []
+    window._base_wrap_widgets_count = 0
     old_child = FakeChild()
     window.step_container = FakeContainer(children=[old_child])
     window.back_button = FakeButton()
@@ -315,6 +334,34 @@ def test_render_active_step_updates_header_and_clears_previous_widgets() -> None
     assert window.step_title_var.get() == "Passo 3 - Lista de URLs"
     assert "Etapas:" in window.step_progress_var.get()
     assert called["builder"] == "urls"
+
+
+def test_calculate_wraplength_respects_reserved_space_and_minimum() -> None:
+    assert calculate_wraplength(900, reserved_space=120, minimum=260) == 780
+    assert calculate_wraplength(300, reserved_space=120, minimum=260) == 260
+
+
+def test_apply_wraplengths_updates_registered_widgets() -> None:
+    window = MainWindow.__new__(MainWindow)
+    widget = FakeWrapWidget()
+    window.root = FakeRoot(width=760)
+    window._wrap_widgets = [(widget, 100, 280)]
+
+    window._apply_wraplengths()
+
+    assert widget.wraplength == calculate_wraplength(760, 100, 280)
+
+
+def test_handle_resize_uses_event_width_for_root_events() -> None:
+    window = MainWindow.__new__(MainWindow)
+    widget = FakeWrapWidget()
+    window.root = FakeRoot(width=760)
+    window._wrap_widgets = [(widget, 120, 260)]
+
+    resize_event = type("ResizeEvent", (), {"widget": window.root, "width": 520})()
+    window._handle_resize(resize_event)
+
+    assert widget.wraplength == calculate_wraplength(520, 120, 260)
 
 
 def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> None:
