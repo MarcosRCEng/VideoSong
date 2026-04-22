@@ -193,12 +193,12 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
   test: navegacao entre etapas e estado central cobertos com pytest
   commit: pendente
 
-* [ ] Criar etapa de configuracao global
+* [x] Criar etapa de configuracao global
   dev: selecao de formato (video/audio)
   test: persistencia durante fluxo + pytest
   commit: pendente
 
-* [ ] Criar etapa de pasta de destino
+* [x] Criar etapa de pasta de destino
   dev: tela dedicada para escolha de pasta
   test: validacao de selecao + pytest
   commit: pendente
