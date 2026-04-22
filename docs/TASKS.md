@@ -119,12 +119,12 @@ Status: Concluido
 * [x] Atualizar empacotamento Windows com build regenerado
   dev: `scripts/build_windows.ps1` ajustado para limpar artefatos antigos e regenerar `dist\VideoSong.exe` a partir do estado atual do projeto
   test: `python -m pytest -q` e `.\scripts\build_windows.ps1`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-atualizar-empacotamento-windows`
 
 * [x] Revisar README com instrucoes finais de uso
   dev: `README.md` atualizado com estado atual do app, fluxo de uso, validacao local e empacotamento Windows
   test: revisao manual do conteudo e `python -m pytest -q`
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-revisar-readme-uso-final`
 
 * [x] Tratamento de erros
   dev: try/except com log
@@ -160,7 +160,7 @@ Status: Parcialmente concluido
 * [x] Padronizar formatos finais de download para `.mp4` e `.mp3`
   dev: ajustar o fluxo para salvar video final em `.mp4` e somente audio final em `.mp3`
   test: validar o comportamento do servico de download e atualizar os testes automatizados
-  commit: aguardando autorizacao
+  commit: realizado na branch `codex/task-formatos-mp4-mp3`
 
 * [x] Versionar o executavel `.exe` a cada sprint fechada
   dev: `scripts/build_windows.ps1` agora exige `-ReleaseLabel` e, alem de regenerar `dist\VideoSong.exe`, copia um artefato versionado para `dist\releases\VideoSong-<release>.exe`; `README.md` documenta o fluxo minimo de release por sprint
@@ -175,7 +175,7 @@ Status: Parcialmente concluido
 * [x] Garantir `ffmpeg` e `ffprobe` no fluxo de download de video e audio
   dev: `download_service.py` passou a localizar `ffmpeg` e `ffprobe` no ambiente e tambem nos binarios empacotados pelo PyInstaller; `scripts/setup_windows.ps1` agora instala/verifica `Node.js`, `ffmpeg` e `ffprobe`; `scripts/build_windows.ps1` passou a bloquear build incompleto e `VideoSong.spec` embute `ffmpeg/ffprobe` no pacote final quando encontrados
   test: validacao automatizada do Python e validacao de sintaxe/execucao dos scripts de setup e build no Windows
-  commit: pendente
+  commit: realizado na branch `codex/task-ffmpeg-ffprobe-download`
 
 * [x] Adicionar gravacao simples de logs de erro para diagnostico local
   dev: `src/videosong/services/error_log.py` adicionado para registrar erros em `logs\videosong-errors.log`; falhas de download relevantes e excecoes nao tratadas da aplicacao/interface agora escrevem no log local e devolvem referencia objetiva ao arquivo
@@ -191,37 +191,37 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
 * [x] Refatorar arquitetura da UI para fluxo por etapas
   dev: extrair WizardState e preparar MainWindow para renderizar a etapa ativa com navegacao
   test: navegacao entre etapas e estado central cobertos com pytest
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-base-wizard`
 
 * [x] Criar etapa de configuracao global
   dev: selecao de formato (video/audio)
   test: persistencia durante fluxo + pytest
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-etapa-config-destino`
 
 * [x] Criar etapa de pasta de destino
   dev: tela dedicada para escolha de pasta
   test: validacao de selecao + pytest
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-etapa-config-destino`
 
 * [x] Criar etapa de lista de URLs
   dev: adicionar, remover e listar URLs
   test: validacao de lista e entradas invalidas + pytest
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-lista-urls`
 
 * [x] Permitir colar multiplas URLs (uma por linha)
   dev: parser testavel para texto multiline com deduplicacao simples, separacao entre URLs validas e invalidas e integracao com a lista existente sem quebrar a adicao manual
   test: validacao de multiplas entradas, duplicidades e integracao da colagem em lote + `python -m pytest -q` via `.venv`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-colagem-multipla`
 
 * [x] Criar etapa de revisao e execucao
   dev: resumo final com formato, pasta, quantidade de URLs, estado pronto para execucao e disparo minimo preservando o servico atual pela primeira URL
   test: resumo final, bloqueio de avance sem pasta/URLs obrigatorias + `python -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-revisao-execucao`
 
 * [x] Corrigir responsividade da janela
   dev: reorganizar a shell da janela com `grid`, ajustar `geometry`/`minsize`, distribuir pesos com `columnconfigure`/`rowconfigure` e recalcular `wraplength` no resize para reduzir cortes visuais nas etapas do wizard
   test: cobertura de wrap responsivo + `python -m pytest -q` e validacao manual em tamanhos reduzidos/redimensionamento da janela
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint3-responsividade`
 
 ---
 
@@ -229,10 +229,10 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
 
 Objetivo: reduzir friccao entre usos do aplicativo.
 
-* [ ] Criar servico de configuracoes persistentes
-  dev: `settings_service.py` com armazenamento local (JSON)
-  test: leitura/escrita + pytest
-  commit: pendente
+* [x] Criar servico de configuracoes persistentes
+  dev: `settings_service.py` criado com API simples para carregar/salvar configuracoes em JSON local, fallback seguro para arquivo ausente e JSON invalido, e exportacao via `services.__init__`
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py`
+  commit: realizado na branch `codex/task-sprint4-settings-service`
 
 * [ ] Memorizar ultima pasta utilizada
   dev: salvar e restaurar automaticamente
