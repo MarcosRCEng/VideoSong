@@ -3,6 +3,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.videosong.app import run
+from src.videosong.services.download_queue import (
+    DOWNLOAD_ITEM_STATUSES,
+    build_download_item,
+    build_download_queue,
+    update_download_item,
+)
 from src.videosong.services.download_service import (
     DownloadError,
     build_download_options,
@@ -132,6 +138,22 @@ def test_wizard_state_clamps_step_index() -> None:
 
     state.set_active_step(-5)
     assert state.active_step == WIZARD_STEPS[0]
+
+
+def test_wizard_state_builds_download_items_from_current_flow() -> None:
+    state = WizardState(
+        urls=[" https://example.com/first ", "https://example.com/second"],
+        mode="audio",
+        destination=" C:/Queue ",
+    )
+
+    assert [item.url for item in state.download_items] == [
+        "https://example.com/first",
+        "https://example.com/second",
+    ]
+    assert all(item.mode == "audio" for item in state.download_items)
+    assert all(item.destination == "C:/Queue" for item in state.download_items)
+    assert all(item.status == "pending" for item in state.download_items)
 
 
 def test_build_flow_summary_requires_url_first() -> None:
@@ -524,6 +546,61 @@ def test_build_download_options_for_video_uses_mp4_preference() -> None:
     assert "Downloads" in options["outtmpl"]
 
 
+def test_build_download_item_normalizes_queue_data() -> None:
+    item = build_download_item(" https://example.com/watch?v=123 ", "invalid", " C:/Downloads ")
+
+    assert item.url == "https://example.com/watch?v=123"
+    assert item.mode == "video"
+    assert item.destination == "C:/Downloads"
+    assert item.status == "pending"
+
+
+def test_build_download_queue_preserves_url_order() -> None:
+    queue = build_download_queue(
+        ["https://example.com/first", "https://example.com/second"],
+        "audio",
+        "C:/Downloads",
+    )
+
+    assert [item.url for item in queue] == [
+        "https://example.com/first",
+        "https://example.com/second",
+    ]
+
+
+def test_update_download_item_changes_status_and_message() -> None:
+    item = build_download_item("https://example.com/watch?v=123", "audio", "C:/Downloads")
+
+    updated_item = update_download_item(item, status="running", message="Baixando item 1.")
+
+    assert updated_item.status == "running"
+    assert updated_item.message == "Baixando item 1."
+    assert item.status == "pending"
+
+
+def test_update_download_item_uses_default_message_for_status() -> None:
+    item = build_download_item("https://example.com/watch?v=123", "audio", "C:/Downloads")
+
+    updated_item = update_download_item(item, status="completed")
+
+    assert updated_item.message == "Download concluido com sucesso."
+
+
+def test_download_item_statuses_are_exposed() -> None:
+    assert DOWNLOAD_ITEM_STATUSES == ("pending", "running", "completed", "error")
+
+
+def test_update_download_item_rejects_invalid_status() -> None:
+    item = build_download_item("https://example.com/watch?v=123", "audio", "C:/Downloads")
+
+    try:
+        update_download_item(item, status="invalid")  # type: ignore[arg-type]
+    except ValueError as error:
+        assert "Estado de download invalido" in str(error)
+    else:
+        raise AssertionError("Era esperado ValueError para estado invalido.")
+
+
 @patch("src.videosong.services.download_service.which", return_value="C:/Runtime/node.exe")
 def test_find_js_runtime_options_prefers_node_when_available(_mock_which: MagicMock) -> None:
     with patch("src.videosong.services.download_service.find_node_runtime_path", return_value="C:/Runtime/node.exe"):
@@ -730,6 +807,33 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
 
     assert window.status_var.get() == "baixado audio em C:/Downloads"
     assert window.status_label.fg == "#1f6f43"
+
+
+def test_handle_download_builds_first_queue_item_before_calling_service(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(urls=[" https://example.com/first ", "https://example.com/second"])
+    window.mode_var = FakeVar("audio")
+    window.destination_var = FakeVar(" C:/Downloads ")
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    captured: dict[str, str] = {}
+
+    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+        captured["url"] = url
+        captured["mode"] = mode
+        captured["destination"] = destination
+        return ("success", "item concluido")
+
+    monkeypatch.setattr(main_window, "start_download", fake_start_download)
+
+    window._handle_download()
+
+    assert captured == {
+        "url": "https://example.com/first",
+        "mode": "audio",
+        "destination": "C:/Downloads",
+    }
+    assert window.status_var.get() == "item concluido"
 
 
 def test_handle_download_uses_first_url_from_list(monkeypatch) -> None:
