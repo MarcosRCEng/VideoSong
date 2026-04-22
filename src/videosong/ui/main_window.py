@@ -5,6 +5,11 @@ from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
+from src.videosong.ui.layout_metrics import (
+    DEFAULT_WINDOW_GEOMETRY,
+    DEFAULT_WINDOW_MINSIZE,
+    calculate_wraplength,
+)
 from src.videosong.ui.url_batch_parser import (
     build_batch_feedback,
     parse_url_batch,
@@ -30,8 +35,8 @@ class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title("VideoSong")
-        self.root.geometry("700x430")
-        self.root.minsize(600, 380)
+        self.root.geometry(DEFAULT_WINDOW_GEOMETRY)
+        self.root.minsize(*DEFAULT_WINDOW_MINSIZE)
         self.root.report_callback_exception = self._handle_tk_exception
 
         self.state = WizardState()
@@ -49,50 +54,65 @@ class MainWindow:
         self.status_color = "#1f1f1f"
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
+        self._wrap_widgets: list[tuple[tk.Widget, int, int]] = []
+        self._base_wrap_widgets_count = 0
 
         self._build()
+        self.root.bind("<Configure>", self._handle_resize)
         self.mode_var.trace_add("write", self._handle_form_change)
         self.destination_var.trace_add("write", self._handle_form_change)
         self._render_active_step()
 
     def _build(self) -> None:
-        container = ttk.Frame(self.root, padding=20)
-        container.pack(fill="both", expand=True)
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
 
-        ttk.Label(container, text="VideoSong", font=("Segoe UI", 18, "bold")).pack(anchor="w")
+        container = ttk.Frame(self.root, padding=20)
+        container.grid(row=0, column=0, sticky="nsew")
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(5, weight=1)
+
+        ttk.Label(container, text="VideoSong", font=("Segoe UI", 18, "bold")).grid(row=0, column=0, sticky="w")
         ttk.Label(
             container,
             text="Fluxo em etapas preparado para evoluir a UI sem misturar estado, navegacao e execucao.",
-        ).pack(anchor="w", pady=(4, 16))
+        ).grid(row=1, column=0, sticky="w", pady=(4, 16))
 
-        ttk.Label(container, textvariable=self.step_progress_var, foreground="#555555").pack(anchor="w")
-        ttk.Label(container, textvariable=self.step_title_var).pack(anchor="w", pady=(8, 0))
-        ttk.Label(container, textvariable=self.step_description_var, wraplength=620, foreground="#555555").pack(
-            anchor="w", pady=(4, 16)
+        ttk.Label(container, textvariable=self.step_progress_var, foreground="#555555").grid(
+            row=2, column=0, sticky="w"
         )
+        ttk.Label(container, textvariable=self.step_title_var).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        step_description_label = ttk.Label(container, textvariable=self.step_description_var, foreground="#555555")
+        step_description_label.grid(row=4, column=0, sticky="ew", pady=(4, 16))
+        self._register_wrap_widget(step_description_label, reserved_space=80, minimum=280)
 
         self.step_container = ttk.Frame(container)
-        self.step_container.pack(fill="both", expand=True)
+        self.step_container.grid(row=5, column=0, sticky="nsew")
+        self.step_container.columnconfigure(0, weight=1)
+        self.step_container.rowconfigure(0, weight=1)
 
         navigation = ttk.Frame(container)
-        navigation.pack(fill="x", pady=(12, 0))
+        navigation.grid(row=6, column=0, sticky="ew", pady=(12, 0))
+        navigation.columnconfigure(2, weight=1)
         self.back_button = ttk.Button(navigation, text="Voltar", command=self._handle_back)
-        self.back_button.pack(side="left")
+        self.back_button.grid(row=0, column=0, sticky="w")
         self.next_button = ttk.Button(navigation, text="Proximo", command=self._handle_next)
-        self.next_button.pack(side="left", padx=(8, 0))
+        self.next_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.download_button = ttk.Button(navigation, text="Iniciar download", command=self._handle_download)
-        self.download_button.pack(side="right")
+        self.download_button.grid(row=0, column=3, sticky="e")
 
-        ttk.Separator(container, orient="horizontal").pack(fill="x", pady=16)
-        ttk.Label(container, text="Status").pack(anchor="w")
+        ttk.Separator(container, orient="horizontal").grid(row=7, column=0, sticky="ew", pady=16)
+        ttk.Label(container, text="Status").grid(row=8, column=0, sticky="w")
         self.status_label = tk.Label(
             container,
             textvariable=self.status_var,
-            wraplength=600,
             justify="left",
             fg=self.status_color,
         )
-        self.status_label.pack(anchor="w", pady=(4, 0))
+        self.status_label.grid(row=9, column=0, sticky="ew", pady=(4, 0))
+        self._register_wrap_widget(self.status_label, reserved_space=100, minimum=260)
+        self._base_wrap_widgets_count = len(self._wrap_widgets)
+        self._apply_wraplengths()
 
     def _handle_form_change(self, *_args: object) -> None:
         self._sync_state_from_vars()
@@ -114,6 +134,7 @@ class MainWindow:
         self.step_progress_var.set(self._build_step_progress())
         self.step_title_var.set(step.title)
         self.step_description_var.set(step.description)
+        self._wrap_widgets = self._wrap_widgets[: self._base_wrap_widgets_count]
 
         for child in self.step_container.winfo_children():
             child.destroy()
@@ -126,55 +147,98 @@ class MainWindow:
         }
         builders[step.key](self.step_container, step)
         self._update_navigation_buttons()
+        self._apply_wraplengths()
 
     def _build_format_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
+        parent.columnconfigure(0, weight=1)
         modes = ttk.Frame(parent)
-        modes.pack(anchor="w", pady=(4, 12))
-        ttk.Radiobutton(modes, text="Video completo", value="video", variable=self.mode_var).pack(side="left")
-        ttk.Radiobutton(modes, text="Somente audio", value="audio", variable=self.mode_var).pack(side="left", padx=(16, 0))
-        ttk.Label(
+        modes.grid(row=0, column=0, sticky="w", pady=(4, 12))
+        ttk.Radiobutton(modes, text="Video completo", value="video", variable=self.mode_var).grid(row=0, column=0, sticky="w")
+        ttk.Radiobutton(modes, text="Somente audio", value="audio", variable=self.mode_var).grid(
+            row=0, column=1, sticky="w", padx=(16, 0)
+        )
+        helper_label = ttk.Label(
             parent,
             text="Escolha video para manter imagem e som, ou audio para extrair apenas a faixa sonora.",
-            wraplength=620,
             foreground="#555555",
-        ).pack(anchor="w")
+        )
+        helper_label.grid(row=1, column=0, sticky="ew")
+        self._register_wrap_widget(helper_label, reserved_space=100, minimum=260)
 
     def _build_destination_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
-        ttk.Button(parent, text="Escolher pasta", command=self._handle_choose_destination).pack(anchor="w", pady=(4, 8))
-        ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555", wraplength=620).pack(anchor="w")
+        parent.columnconfigure(0, weight=1)
+        ttk.Button(parent, text="Escolher pasta", command=self._handle_choose_destination).grid(
+            row=0, column=0, sticky="w", pady=(4, 8)
+        )
+        destination_label = ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555")
+        destination_label.grid(row=1, column=0, sticky="ew")
+        self._register_wrap_widget(destination_label, reserved_space=100, minimum=260)
 
     def _build_urls_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
-        input_row = ttk.Frame(parent)
-        input_row.pack(fill="x", pady=(4, 8))
-        ttk.Entry(input_row, textvariable=self.current_url_var).pack(side="left", fill="x", expand=True)
-        ttk.Button(input_row, text="Adicionar URL", command=self._handle_add_url).pack(side="left", padx=(8, 0))
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(3, weight=1)
 
-        ttk.Label(
+        input_row = ttk.Frame(parent)
+        input_row.grid(row=0, column=0, sticky="ew", pady=(4, 8))
+        input_row.columnconfigure(0, weight=1)
+        ttk.Entry(input_row, textvariable=self.current_url_var).grid(row=0, column=0, sticky="ew")
+        ttk.Button(input_row, text="Adicionar URL", command=self._handle_add_url).grid(row=0, column=1, sticky="e", padx=(8, 0))
+
+        intro_label = ttk.Label(
             parent,
             text="Adicione manualmente uma URL por vez ou cole varias linhas com http:// ou https://.",
             foreground="#555555",
-            wraplength=620,
-        ).pack(anchor="w", pady=(0, 8))
+        )
+        intro_label.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        self._register_wrap_widget(intro_label, reserved_space=100, minimum=260)
 
         bulk_frame = ttk.Frame(parent)
-        bulk_frame.pack(fill="x", pady=(0, 8))
+        bulk_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 8))
+        bulk_frame.columnconfigure(0, weight=1)
         self.bulk_urls_text = tk.Text(bulk_frame, height=4, wrap="word")
-        self.bulk_urls_text.pack(side="left", fill="x", expand=True)
-        ttk.Button(bulk_frame, text="Adicionar em lote", command=self._handle_add_urls_batch).pack(side="left", padx=(8, 0))
+        self.bulk_urls_text.grid(row=0, column=0, sticky="ew")
+        ttk.Button(bulk_frame, text="Adicionar em lote", command=self._handle_add_urls_batch).grid(
+            row=0, column=1, sticky="ne", padx=(8, 0)
+        )
 
         self.urls_listbox = tk.Listbox(parent, height=7, exportselection=False)
-        self.urls_listbox.pack(fill="both", expand=True, pady=(0, 8))
+        self.urls_listbox.grid(row=3, column=0, sticky="nsew", pady=(0, 8))
         self._refresh_urls_listbox()
 
         actions = ttk.Frame(parent)
-        actions.pack(fill="x")
-        ttk.Button(actions, text="Remover selecionada", command=self._handle_remove_url).pack(side="left")
-        ttk.Label(actions, textvariable=self.urls_label_var, foreground="#555555").pack(side="left", padx=(12, 0))
+        actions.grid(row=4, column=0, sticky="ew")
+        actions.columnconfigure(1, weight=1)
+        ttk.Button(actions, text="Remover selecionada", command=self._handle_remove_url).grid(row=0, column=0, sticky="w")
+        ttk.Label(actions, textvariable=self.urls_label_var, foreground="#555555").grid(
+            row=0, column=1, sticky="w", padx=(12, 0)
+        )
 
     def _build_review_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
-        ttk.Label(parent, text="Resumo do fluxo").pack(anchor="w")
-        ttk.Label(parent, textvariable=self.review_summary_var, justify="left", wraplength=620).pack(anchor="w", pady=(4, 12))
-        ttk.Label(parent, textvariable=self.flow_var, foreground="#555555", wraplength=620).pack(anchor="w")
+        parent.columnconfigure(0, weight=1)
+        ttk.Label(parent, text="Resumo do fluxo").grid(row=0, column=0, sticky="w")
+        review_summary_label = ttk.Label(parent, textvariable=self.review_summary_var, justify="left")
+        review_summary_label.grid(row=1, column=0, sticky="ew", pady=(4, 12))
+        self._register_wrap_widget(review_summary_label, reserved_space=100, minimum=260)
+        flow_label = ttk.Label(parent, textvariable=self.flow_var, foreground="#555555")
+        flow_label.grid(row=2, column=0, sticky="ew")
+        self._register_wrap_widget(flow_label, reserved_space=100, minimum=260)
+
+    def _register_wrap_widget(self, widget: tk.Widget, reserved_space: int, minimum: int) -> None:
+        self._wrap_widgets.append((widget, reserved_space, minimum))
+
+    def _apply_wraplengths(self, width: int | None = None) -> None:
+        root = getattr(self, "root", None)
+        if root is None and width is None:
+            return
+
+        window_width = width or root.winfo_width()
+
+        for widget, reserved_space, minimum in self._wrap_widgets:
+            widget.configure(wraplength=calculate_wraplength(window_width, reserved_space, minimum))
+
+    def _handle_resize(self, event: tk.Event[tk.Misc]) -> None:
+        if event.widget is self.root:
+            self._apply_wraplengths(width=event.width)
 
     def _update_navigation_buttons(self) -> None:
         self.back_button.configure(state="normal" if self.state.can_go_back() else "disabled")
