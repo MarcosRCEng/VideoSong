@@ -10,6 +10,17 @@ def get_settings_file_path() -> Path:
     return Path.home() / ".videosong" / "settings.json"
 
 
+def resolve_default_destination(mode: str, home_path: str | Path | None = None) -> str:
+    base_home = Path(home_path) if home_path is not None else Path.home()
+    preferred_directory_name = "Music" if mode == "audio" else "Videos"
+    preferred_directory = base_home / preferred_directory_name
+
+    if preferred_directory.is_dir():
+        return str(preferred_directory)
+
+    return str(base_home)
+
+
 def load_settings(settings_path: str | Path | None = None) -> dict[str, Any]:
     file_path = Path(settings_path) if settings_path is not None else get_settings_file_path()
 
