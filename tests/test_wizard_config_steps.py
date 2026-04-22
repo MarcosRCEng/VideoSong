@@ -80,8 +80,10 @@ def test_destination_persists_after_returning_to_previous_step() -> None:
 
 def test_choose_destination_updates_dedicated_step_state(monkeypatch) -> None:
     window = make_window(active_step_index=1, mode="audio")
+    persisted_destinations: list[str] = []
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "C:/Music")
+    window._persist_selected_destination = lambda destination: persisted_destinations.append(destination)
 
     window._handle_choose_destination()
 
@@ -89,13 +91,16 @@ def test_choose_destination_updates_dedicated_step_state(monkeypatch) -> None:
     assert window.state.destination == "C:/Music"
     assert window.destination_label_var.get() == "Pasta de destino: C:/Music"
     assert "C:/Music" in window.flow_var.get()
+    assert persisted_destinations == ["C:/Music"]
 
 
 def test_choose_destination_keeps_existing_value_when_cancelled(monkeypatch) -> None:
     window = make_window(active_step_index=1, destination="C:/Existing")
     previous_summary = window.flow_var.get()
+    persisted_destinations: list[str] = []
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "")
+    window._persist_selected_destination = lambda destination: persisted_destinations.append(destination)
 
     window._handle_choose_destination()
 
@@ -103,3 +108,4 @@ def test_choose_destination_keeps_existing_value_when_cancelled(monkeypatch) -> 
     assert window.state.destination == "C:/Existing"
     assert window.flow_var.get() == previous_summary
     assert window.status_var.get() == "Selecao de pasta cancelada. Escolha um destino para concluir a preparacao."
+    assert persisted_destinations == []

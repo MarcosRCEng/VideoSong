@@ -5,7 +5,13 @@ from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
-from src.videosong.services.settings_service import resolve_default_destination
+from src.videosong.services.settings_service import (
+    get_last_destination,
+    load_settings,
+    resolve_default_destination,
+    save_settings,
+    set_last_destination,
+)
 from src.videosong.ui.layout_metrics import (
     DEFAULT_WINDOW_GEOMETRY,
     DEFAULT_WINDOW_MINSIZE,
@@ -41,7 +47,8 @@ class MainWindow:
         self.root.report_callback_exception = self._handle_tk_exception
 
         initial_mode = "video"
-        initial_destination = resolve_default_destination(initial_mode)
+        self.settings = load_settings()
+        initial_destination = self._resolve_initial_destination(initial_mode)
         self.state = WizardState(mode=initial_mode, destination=initial_destination)
         self.current_url_var = tk.StringVar()
         self.mode_var = tk.StringVar(value=self.state.mode)
@@ -65,6 +72,18 @@ class MainWindow:
         self.mode_var.trace_add("write", self._handle_form_change)
         self.destination_var.trace_add("write", self._handle_form_change)
         self._render_active_step()
+
+    def _resolve_initial_destination(self, mode: str) -> str:
+        saved_destination = get_last_destination(getattr(self, "settings", {}))
+        if saved_destination:
+            return saved_destination
+
+        return resolve_default_destination(mode)
+
+    def _persist_selected_destination(self, destination: str) -> None:
+        current_settings = getattr(self, "settings", {})
+        self.settings = set_last_destination(current_settings, destination)
+        save_settings(self.settings)
 
     def _build(self) -> None:
         self.root.columnconfigure(0, weight=1)
@@ -280,6 +299,7 @@ class MainWindow:
             return
 
         self.destination_var.set(selected_directory)
+        self._persist_selected_destination(selected_directory)
         self._handle_form_change()
         self._set_status("neutral", "Pasta de destino definida. Revise o resumo e valide o fluxo.")
 

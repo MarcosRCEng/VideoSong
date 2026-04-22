@@ -234,10 +234,10 @@ Objetivo: reduzir friccao entre usos do aplicativo.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py`
   commit: realizado na branch `codex/task-sprint4-settings-service`
 
-* [ ] Memorizar ultima pasta utilizada
-  dev: salvar e restaurar automaticamente
-  test: persistencia entre execucoes + pytest
-  commit: pendente
+* [x] Memorizar ultima pasta utilizada
+  dev: `MainWindow` agora salva automaticamente a pasta escolhida no wizard via `settings_service` e restaura esse destino ao abrir o app; quando nao existe pasta salva, o fluxo preserva a regra da pasta padrao inteligente
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_settings_service.py tests/test_wizard_config_steps.py tests/test_imports.py`
+  commit: realizado na branch `codex/task-sprint4-settings-service`
 
 * [x] Definir pasta padrao inteligente
   dev: `settings_service.py` agora resolve a pasta padrao com prioridade para `Videos` no modo `video` e `Music` no modo `audio`, com fallback seguro para a `home`; `MainWindow` passa a iniciar com esse destino e troca entre defaults ao mudar o modo enquanto o usuario ainda nao escolheu uma pasta manual

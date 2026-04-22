@@ -284,6 +284,36 @@ def test_handle_form_change_keeps_manual_destination_when_mode_changes() -> None
     assert window.destination_var.get() == "C:/Custom"
 
 
+def test_resolve_initial_destination_prefers_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"last_destination": "C:/Saved"}
+
+    assert window._resolve_initial_destination("video") == "C:/Saved"
+
+
+def test_resolve_initial_destination_falls_back_to_intelligent_default_without_saved_setting() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {}
+
+    assert window._resolve_initial_destination("audio") == resolve_default_destination("audio")
+
+
+def test_persist_selected_destination_updates_settings_and_saves(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"mode": "video"}
+    captured: dict[str, object] = {}
+
+    def fake_save_settings(settings: dict[str, object]) -> None:
+        captured["settings"] = dict(settings)
+
+    monkeypatch.setattr(main_window, "save_settings", fake_save_settings)
+
+    window._persist_selected_destination("  C:/Downloads  ")
+
+    assert window.settings == {"mode": "video", "last_destination": "C:/Downloads"}
+    assert captured["settings"] == {"mode": "video", "last_destination": "C:/Downloads"}
+
+
 def test_update_navigation_buttons_reflects_current_step() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(active_step_index=0)
@@ -405,6 +435,7 @@ def test_handle_resize_uses_event_width_for_root_events() -> None:
 def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(mode="video")
+    window.settings = {}
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("")
     window.destination_label_var = FakeVar("")
@@ -415,6 +446,7 @@ def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> No
     window.status_label = FakeLabel()
 
     monkeypatch.setattr(main_window.filedialog, "askdirectory", lambda title: "C:/Downloads")
+    monkeypatch.setattr(main_window, "save_settings", lambda settings: None)
 
     window._handle_choose_destination()
 
