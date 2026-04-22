@@ -1,10 +1,15 @@
 import tkinter as tk
 from collections.abc import Callable
 from types import TracebackType
-from tkinter import filedialog, ttk
+from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_service import start_download
+from src.videosong.ui.url_batch_parser import (
+    build_batch_feedback,
+    parse_url_batch,
+    validate_url_batch,
+)
 from src.videosong.ui.url_list_manager import add_url, remove_url
 from src.videosong.ui.wizard_messages import (
     build_destination_label,
@@ -37,6 +42,7 @@ class MainWindow:
         self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
         self.urls_listbox: tk.Listbox | None = None
+        self.bulk_urls_text: tk.Text | None = None
 
         self._build()
         self.mode_var.trace_add("write", self._handle_form_change)
@@ -138,10 +144,16 @@ class MainWindow:
 
         ttk.Label(
             parent,
-            text="Adicione uma URL por vez com http:// ou https://. A colagem multipla continua fora do escopo desta sprint.",
+            text="Adicione manualmente uma URL por vez ou cole varias linhas com http:// ou https://.",
             foreground="#555555",
             wraplength=620,
         ).pack(anchor="w", pady=(0, 8))
+
+        bulk_frame = ttk.Frame(parent)
+        bulk_frame.pack(fill="x", pady=(0, 8))
+        self.bulk_urls_text = tk.Text(bulk_frame, height=4, wrap="word")
+        self.bulk_urls_text.pack(side="left", fill="x", expand=True)
+        ttk.Button(bulk_frame, text="Adicionar em lote", command=self._handle_add_urls_batch).pack(side="left", padx=(8, 0))
 
         self.urls_listbox = tk.Listbox(parent, height=7, exportselection=False)
         self.urls_listbox.pack(fill="both", expand=True, pady=(0, 8))
@@ -202,6 +214,30 @@ class MainWindow:
         self._handle_form_change()
         self._refresh_urls_listbox()
         self._set_status("neutral", f"URL adicionada. Lista atual com {len(self.state.urls)} item(ns).")
+
+    def _handle_add_urls_batch(self) -> None:
+        if self.bulk_urls_text is None:
+            return
+
+        batch_value = self.bulk_urls_text.get("1.0", END)
+        validation_error = validate_url_batch(batch_value)
+
+        if validation_error:
+            self._set_status("error", validation_error)
+            return
+
+        result = parse_url_batch(batch_value, existing_urls=self.state.urls)
+        status_kind, message = build_batch_feedback(result)
+
+        if status_kind == "error":
+            self._set_status(status_kind, message)
+            return
+
+        self.state.urls = [*self.state.urls, *result.accepted_urls]
+        self.bulk_urls_text.delete("1.0", END)
+        self._handle_form_change()
+        self._refresh_urls_listbox()
+        self._set_status(status_kind, f"{message} Lista atual com {len(self.state.urls)} item(ns).")
 
     def _handle_remove_url(self) -> None:
         if self.urls_listbox is None:

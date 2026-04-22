@@ -208,9 +208,9 @@ Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estrutur
   test: validacao de lista e entradas invalidas + pytest
   commit: pendente
 
-* [ ] Permitir colar multiplas URLs (uma por linha)
-  dev: parser de texto para lista automatica
-  test: validacao de multiplas entradas + pytest
+* [x] Permitir colar multiplas URLs (uma por linha)
+  dev: parser testavel para texto multiline com deduplicacao simples, separacao entre URLs validas e invalidas e integracao com a lista existente sem quebrar a adicao manual
+  test: validacao de multiplas entradas, duplicidades e integracao da colagem em lote + `python -m pytest -q` via `.venv`
   commit: pendente
 
 * [ ] Criar etapa de revisao e execucao
