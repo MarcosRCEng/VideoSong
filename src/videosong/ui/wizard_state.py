@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from src.videosong.services.download_queue import DownloadItem, build_download_queue
 from src.videosong.ui.wizard_steps import WIZARD_STEPS, WizardStep
 
 
@@ -22,6 +23,10 @@ class WizardState:
             return ""
 
         return self.urls[0]
+
+    @property
+    def download_items(self) -> list[DownloadItem]:
+        return build_download_queue(self.urls, self.mode, self.destination)
 
     def can_go_back(self) -> bool:
         return self.active_step_index > 0

@@ -4,6 +4,7 @@ from types import TracebackType
 from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
+from src.videosong.services.download_queue import update_download_item
 from src.videosong.services.download_service import start_download
 from src.videosong.services.settings_service import (
     get_last_destination,
@@ -405,9 +406,17 @@ class MainWindow:
             self._set_status(status_kind, message)
             return
 
-        self._set_status("neutral", "Iniciando download...")
-        status_kind, message = start_download(self.state.primary_url, self.state.mode, self.state.destination)
-        self._set_status(status_kind, message)
+        queue = self.state.download_items
+        current_item = update_download_item(
+            queue[0],
+            status="running",
+            message=f"Preparando item 1 de {len(queue)} da fila.",
+        )
+        self._set_status("neutral", current_item.message)
+        status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
+        final_status = "completed" if status_kind == "success" else "error"
+        final_item = update_download_item(current_item, status=final_status, message=message)
+        self._set_status(status_kind, final_item.message)
 
     def run(self) -> None:
         self.root.mainloop()

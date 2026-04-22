@@ -255,10 +255,10 @@ Objetivo: reduzir friccao entre usos do aplicativo.
 
 Objetivo: suportar multiplas URLs com processamento em lote.
 
-* [ ] Criar modelo de item de download
-  dev: estrutura com estado, progresso e mensagem
-  test: validacao de estados + pytest
-  commit: pendente
+* [x] Criar modelo de item de download
+  dev: `download_queue.py` introduz `DownloadItem` com estado e mensagem, `WizardState` expoe a fila derivada de forma nao intrusiva e `MainWindow` ja inicia a execucao a partir do primeiro item dessa fila, sem progresso em tempo real ainda
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
+  commit: realizado na branch `codex/task-sprint5-download-item-model`
 
 * [ ] Implementar execucao sequencial da fila
   dev: processar URLs uma a uma
