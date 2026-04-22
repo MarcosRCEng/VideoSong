@@ -188,9 +188,9 @@ Status: Parcialmente concluido
 
 Objetivo: eliminar a tela unica, evitar corte visual e introduzir fluxo estruturado com suporte a multiplas URLs.
 
-* [ ] Refatorar arquitetura da UI para fluxo por etapas
-  dev: separar a interface em etapas controladas pela janela principal
-  test: navegacao entre etapas + pytest
+* [x] Refatorar arquitetura da UI para fluxo por etapas
+  dev: extrair WizardState e preparar MainWindow para renderizar a etapa ativa com navegacao
+  test: navegacao entre etapas e estado central cobertos com pytest
   commit: pendente
 
 * [ ] Criar etapa de configuracao global

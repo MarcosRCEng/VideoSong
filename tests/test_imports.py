@@ -6,21 +6,17 @@ from src.videosong.app import run
 from src.videosong.services.download_service import (
     DownloadError,
     build_download_options,
+    find_ffmpeg_binary_path,
     find_ffmpeg_location,
     find_js_runtime_options,
     find_node_runtime_path,
-    find_ffmpeg_binary_path,
     start_download,
 )
 from src.videosong.services.error_log import get_log_file_path, write_error_log
 from src.videosong.ui import main_window
-from src.videosong.ui.main_window import (
-    MainWindow,
-    build_destination_label,
-    build_flow_summary,
-    build_status_feedback,
-    is_valid_url,
-)
+from src.videosong.ui.main_window import MainWindow, build_destination_label, build_flow_summary, build_status_feedback, is_valid_url
+from src.videosong.ui.wizard_state import WizardState
+from src.videosong.ui.wizard_steps import WIZARD_STEPS
 
 
 class FakeVar:
@@ -40,6 +36,30 @@ class FakeLabel:
 
     def configure(self, *, fg: str) -> None:
         self.fg = fg
+
+
+class FakeButton:
+    def __init__(self) -> None:
+        self.state = None
+
+    def configure(self, *, state: str) -> None:
+        self.state = state
+
+
+class FakeChild:
+    def __init__(self) -> None:
+        self.destroyed = False
+
+    def destroy(self) -> None:
+        self.destroyed = True
+
+
+class FakeContainer:
+    def __init__(self, children: list[FakeChild] | None = None) -> None:
+        self.children = children or []
+
+    def winfo_children(self) -> list[FakeChild]:
+        return self.children
 
 
 def test_run_symbol_exists() -> None:
@@ -66,8 +86,36 @@ def test_write_error_log_appends_context_and_error(monkeypatch) -> None:
     assert "erro simulado" in content
 
 
+def test_wizard_state_starts_on_first_step() -> None:
+    state = WizardState()
+
+    assert state.active_step_index == 0
+    assert state.active_step == WIZARD_STEPS[0]
+    assert state.can_go_back() is False
+    assert state.can_go_next() is True
+
+
+def test_wizard_state_navigates_between_steps() -> None:
+    state = WizardState()
+
+    assert state.go_next() is True
+    assert state.active_step == WIZARD_STEPS[1]
+    assert state.go_back() is True
+    assert state.active_step == WIZARD_STEPS[0]
+
+
+def test_wizard_state_clamps_step_index() -> None:
+    state = WizardState()
+
+    state.set_active_step(999)
+    assert state.active_step == WIZARD_STEPS[-1]
+
+    state.set_active_step(-5)
+    assert state.active_step == WIZARD_STEPS[0]
+
+
 def test_build_flow_summary_requires_url_first() -> None:
-    assert build_flow_summary("", "video", "") == "Passo 1: cole a URL do video para liberar a validacao do fluxo."
+    assert build_flow_summary(WizardState()) == "Passo 1: cole a URL do video para liberar a validacao do fluxo."
 
 
 def test_is_valid_url_accepts_http_and_https() -> None:
@@ -85,21 +133,21 @@ def test_is_valid_url_rejects_blank_value() -> None:
 
 
 def test_build_flow_summary_requires_complete_url() -> None:
-    assert (
-        build_flow_summary("example.com/video", "video", "")
-        == "Passo 1: use uma URL completa com http:// ou https:// para continuar."
-    )
+    state = WizardState(url="example.com/video")
+
+    assert build_flow_summary(state) == "Passo 1: use uma URL completa com http:// ou https:// para continuar."
 
 
 def test_build_flow_summary_requests_destination_before_completion() -> None:
+    state = WizardState(url="https://example.com/watch?v=123", mode="video")
+
     assert (
-        build_flow_summary("https://example.com/watch?v=123", "video", "")
-        == "Passo 3: formato selecionado. Escolha a pasta de destino para concluir a preparacao."
+        build_flow_summary(state) == "Passo 3: formato selecionado. Escolha a pasta de destino para concluir a preparacao."
     )
 
 
 def test_build_flow_summary_describes_audio_flow_with_destination() -> None:
-    summary = build_flow_summary("https://example.com/watch?v=123", "audio", "C:/Downloads")
+    summary = build_flow_summary(WizardState(url="https://example.com/watch?v=123", mode="audio", destination="C:/Downloads"))
 
     assert "formato audio" in summary
     assert "C:/Downloads" in summary
@@ -115,25 +163,27 @@ def test_build_destination_label_requires_selection() -> None:
 
 
 def test_build_status_feedback_returns_error_without_url() -> None:
-    assert build_status_feedback("", "audio", "") == ("error", "Erro: informe uma URL antes de continuar.")
+    assert build_status_feedback(WizardState(mode="audio")) == ("error", "Erro: informe uma URL antes de continuar.")
 
 
 def test_build_status_feedback_returns_error_with_invalid_url() -> None:
-    assert build_status_feedback("example.com/video", "audio", "") == (
+    assert build_status_feedback(WizardState(url="example.com/video", mode="audio")) == (
         "error",
         "Erro: use uma URL valida com http:// ou https://.",
     )
 
 
 def test_build_status_feedback_requires_destination() -> None:
-    assert build_status_feedback("https://example.com/watch?v=123", "audio", "") == (
+    assert build_status_feedback(WizardState(url="https://example.com/watch?v=123", mode="audio")) == (
         "error",
         "Erro: escolha uma pasta de destino antes de continuar.",
     )
 
 
 def test_build_status_feedback_returns_success_with_url() -> None:
-    status_kind, message = build_status_feedback("https://example.com/watch?v=123", "audio", "C:/Downloads")
+    status_kind, message = build_status_feedback(
+        WizardState(url="https://example.com/watch?v=123", mode="audio", destination="C:/Downloads")
+    )
 
     assert status_kind == "success"
     assert "audio" in message
@@ -142,26 +192,103 @@ def test_build_status_feedback_returns_success_with_url() -> None:
 
 
 def test_build_status_feedback_returns_success_for_video_mode() -> None:
-    message = build_status_feedback("https://example.com/watch?v=123", "video", "C:/Media")[1]
+    message = build_status_feedback(WizardState(url="https://example.com/watch?v=123", mode="video", destination="C:/Media"))[1]
 
     assert "formato video" in message
     assert "C:/Media" in message
 
 
-def test_handle_form_change_updates_flow_summary() -> None:
+def test_handle_form_change_updates_wizard_state_and_summary() -> None:
     window = MainWindow.__new__(MainWindow)
+    window.state = WizardState()
     window.url_var = FakeVar("https://example.com/watch?v=123")
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
     window.flow_var = FakeVar()
+    window.destination_label_var = FakeVar()
 
     window._handle_form_change()
 
-    assert window.flow_var.get() == build_flow_summary("https://example.com/watch?v=123", "audio", "C:/Downloads")
+    assert window.state.url == "https://example.com/watch?v=123"
+    assert window.state.mode == "audio"
+    assert window.state.destination == "C:/Downloads"
+    assert window.flow_var.get() == build_flow_summary(window.state)
+    assert window.destination_label_var.get() == build_destination_label("C:/Downloads")
+
+
+def test_update_navigation_buttons_reflects_current_step() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(active_step_index=0)
+    window.back_button = FakeButton()
+    window.next_button = FakeButton()
+    window.download_button = FakeButton()
+
+    window._update_navigation_buttons()
+
+    assert window.back_button.state == "disabled"
+    assert window.next_button.state == "normal"
+    assert window.download_button.state == "disabled"
+
+    window.state.set_active_step(len(WIZARD_STEPS) - 1)
+    window._update_navigation_buttons()
+
+    assert window.back_button.state == "normal"
+    assert window.next_button.state == "disabled"
+    assert window.download_button.state == "normal"
+
+
+def test_handle_next_advances_step_and_rerenders() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState()
+    rendered_steps: list[int] = []
+    window._render_active_step = lambda: rendered_steps.append(window.state.active_step_index)
+
+    window._handle_next()
+
+    assert window.state.active_step_index == 1
+    assert rendered_steps == [1]
+
+
+def test_handle_back_returns_to_previous_step_and_rerenders() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(active_step_index=2)
+    rendered_steps: list[int] = []
+    window._render_active_step = lambda: rendered_steps.append(window.state.active_step_index)
+
+    window._handle_back()
+
+    assert window.state.active_step_index == 1
+    assert rendered_steps == [1]
+
+
+def test_render_active_step_updates_header_and_clears_previous_widgets() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(active_step_index=2)
+    window.step_progress_var = FakeVar()
+    window.step_title_var = FakeVar()
+    window.step_description_var = FakeVar()
+    old_child = FakeChild()
+    window.step_container = FakeContainer(children=[old_child])
+    window.back_button = FakeButton()
+    window.next_button = FakeButton()
+    window.download_button = FakeButton()
+    called = {"builder": None}
+    window._build_url_step = lambda *_args: called.update(builder="url")
+    window._build_format_step = lambda *_args: called.update(builder="format")
+    window._build_destination_step = lambda *_args: called.update(builder="destination")
+    window._build_review_step = lambda *_args: called.update(builder="review")
+
+    window._render_active_step()
+
+    assert old_child.destroyed is True
+    assert window.step_title_var.get() == "Passo 3 - Pasta de destino"
+    assert "Etapas:" in window.step_progress_var.get()
+    assert called["builder"] == "destination"
 
 
 def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(url="https://example.com/watch?v=123", mode="video")
     window.url_var = FakeVar("https://example.com/watch?v=123")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("")
@@ -182,6 +309,7 @@ def test_handle_choose_destination_updates_folder_and_summary(monkeypatch) -> No
 
 def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(url="https://example.com/watch?v=123", mode="video", destination="C:/Existing")
     window.url_var = FakeVar("https://example.com/watch?v=123")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Existing")
@@ -391,6 +519,7 @@ def test_start_download_returns_guidance_when_ffmpeg_tools_are_missing() -> None
 
 def test_handle_download_stops_when_validation_fails() -> None:
     window = MainWindow.__new__(MainWindow)
+    window.state = WizardState()
     window.url_var = FakeVar("")
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Downloads")
@@ -404,6 +533,7 @@ def test_handle_download_stops_when_validation_fails() -> None:
 
 def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
+    window.state = WizardState()
     window.url_var = FakeVar("https://example.com/watch?v=123")
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar("C:/Downloads")
