@@ -5,9 +5,11 @@ from src.videosong.ui.wizard_state import WizardState
 
 
 def build_review_summary(state: WizardState, download_items: list[DownloadItem] | None = None) -> str:
+    queue = download_items or state.download_items
     destination = state.destination.strip() or "Nao selecionada"
     readiness = build_review_readiness_label(state)
-    queue_lines = build_download_items_summary(download_items or state.download_items)
+    queue_totals = build_download_queue_totals(queue)
+    queue_lines = build_download_items_summary(queue)
 
     return "\n".join(
         [
@@ -16,6 +18,13 @@ def build_review_summary(state: WizardState, download_items: list[DownloadItem] 
             f"Quantidade de URLs: {len(state.urls)}",
             f"Estado: {readiness}",
             "Execucao desta sprint: todas as URLs da fila serao processadas em ordem, uma por vez.",
+            (
+                "Resumo global da fila: "
+                f"Total {queue_totals['total']} | "
+                f"Concluidos {queue_totals['completed']} | "
+                f"Erros {queue_totals['error']} | "
+                f"Em andamento {queue_totals['running']}"
+            ),
             "Fila atual:",
             *queue_lines,
         ]
@@ -101,6 +110,15 @@ def build_status_label(status: str) -> str:
         "error": "Erro",
     }
     return labels.get(status, "Desconhecido")
+
+
+def build_download_queue_totals(download_items: list[DownloadItem]) -> dict[str, int]:
+    return {
+        "total": len(download_items),
+        "completed": sum(1 for item in download_items if item.status == "completed"),
+        "error": sum(1 for item in download_items if item.status == "error"),
+        "running": sum(1 for item in download_items if item.status == "running"),
+    }
 
 
 def _collect_missing_fields(state: WizardState) -> list[str]:
