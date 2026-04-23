@@ -407,16 +407,34 @@ class MainWindow:
             return
 
         queue = self.state.download_items
-        current_item = update_download_item(
-            queue[0],
-            status="running",
-            message=f"Preparando item 1 de {len(queue)} da fila.",
-        )
-        self._set_status("neutral", current_item.message)
-        status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
-        final_status = "completed" if status_kind == "success" else "error"
-        final_item = update_download_item(current_item, status=final_status, message=message)
-        self._set_status(status_kind, final_item.message)
+        has_errors = False
+
+        for index, item in enumerate(queue, start=1):
+            current_item = update_download_item(
+                item,
+                status="running",
+                message=f"Preparando item {index} de {len(queue)} da fila.",
+            )
+            queue[index - 1] = current_item
+            self._set_status("neutral", current_item.message)
+
+            status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
+            final_status = "completed" if status_kind == "success" else "error"
+            final_item = update_download_item(current_item, status=final_status, message=message)
+            queue[index - 1] = final_item
+            has_errors = has_errors or final_status == "error"
+            self._set_status(status_kind, final_item.message)
+
+        completed_count = sum(1 for item in queue if item.status == "completed")
+        error_count = sum(1 for item in queue if item.status == "error")
+        if has_errors:
+            self._set_status(
+                "error",
+                f"Fila finalizada com {completed_count} item(ns) concluido(s) e {error_count} com erro.",
+            )
+            return
+
+        self._set_status("success", f"Fila finalizada com {completed_count} item(ns) concluido(s).")
 
     def run(self) -> None:
         self.root.mainloop()
