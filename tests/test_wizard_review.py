@@ -38,6 +38,7 @@ def test_build_review_summary_lists_format_destination_and_url_count() -> None:
     assert "Quantidade de URLs: 2" in summary
     assert "Estado: pronto para execucao." in summary
     assert "todas as URLs da fila serao processadas em ordem, uma por vez." in summary
+    assert "Resumo global da fila: Total 2 | Concluidos 0 | Erros 0 | Em andamento 0" in summary
     assert "1. https://example.com/a | Aguardando | Aguardando processamento." in summary
     assert "2. https://example.com/b | Aguardando | Aguardando processamento." in summary
 
@@ -48,6 +49,7 @@ def test_build_review_summary_marks_missing_required_data() -> None:
     assert "Pasta de destino: Nao selecionada" in summary
     assert "Quantidade de URLs: 0" in summary
     assert "Estado: pendente, faltam a pasta de destino e a lista de URLs." in summary
+    assert "Resumo global da fila: Total 0 | Concluidos 0 | Erros 0 | Em andamento 0" in summary
     assert "Nenhum item na fila ainda." in summary
 
 
@@ -68,7 +70,34 @@ def test_build_review_summary_uses_live_download_items_when_provided() -> None:
 
     assert "Baixando" in summary
     assert "Baixando metadados do item." in summary
+    assert "Resumo global da fila: Total 1 | Concluidos 0 | Erros 0 | Em andamento 1" in summary
     assert "..." in summary
+
+
+def test_build_review_summary_aggregates_counts_from_visible_queue() -> None:
+    state = WizardState(
+        urls=[
+            "https://example.com/a",
+            "https://example.com/b",
+            "https://example.com/c",
+            "https://example.com/d",
+        ],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    queue = state.download_items
+    queue[0] = update_download_item(queue[0], status="completed")
+    queue[1] = update_download_item(queue[1], status="error", message="Falha de teste.")
+    queue[2] = update_download_item(queue[2], status="running", message="Baixando agora.")
+
+    summary = build_review_summary(state, queue)
+
+    assert "Resumo global da fila: Total 4 | Concluidos 1 | Erros 1 | Em andamento 1" in summary
+    assert "1. https://example.com/a | Concluido | Download concluido com sucesso." in summary
+    assert "2. https://example.com/b | Erro | Falha de teste." in summary
+    assert "3. https://example.com/c | Baixando | Baixando agora." in summary
+    assert "4. https://example.com/d | Aguardando | Aguardando processamento." in summary
 
 
 def test_handle_next_blocks_advance_without_destination() -> None:

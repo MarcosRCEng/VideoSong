@@ -270,9 +270,9 @@ Objetivo: suportar multiplas URLs com processamento em lote.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
   commit: pendente
 
-* [ ] Exibir resumo global da fila
-  dev: total, concluidos, erros
-  test: consistencia de contadores + pytest
+* [x] Exibir resumo global da fila
+  dev: etapa de revisao agora mostra um resumo global derivado da fila visivel com total, concluidos, erros e em andamento; os contadores usam a mesma colecao renderizada na lista por item e sao atualizados a cada refresh de estado da fila
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
   commit: pendente
 
 * [ ] Bloquear edicao durante execucao
