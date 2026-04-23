@@ -375,6 +375,7 @@ def test_persist_selected_mode_updates_settings_and_saves(monkeypatch) -> None:
 def test_update_navigation_buttons_reflects_current_step() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(active_step_index=0)
+    window.is_downloading = False
     window.back_button = FakeButton()
     window.next_button = FakeButton()
     window.download_button = FakeButton()
@@ -400,6 +401,7 @@ def test_update_navigation_buttons_reflects_current_step() -> None:
 def test_update_navigation_buttons_blocks_next_without_required_data() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(active_step_index=1)
+    window.is_downloading = False
     window.back_button = FakeButton()
     window.next_button = FakeButton()
     window.download_button = FakeButton()
@@ -407,6 +409,25 @@ def test_update_navigation_buttons_blocks_next_without_required_data() -> None:
     window._update_navigation_buttons()
 
     assert window.back_button.state == "normal"
+    assert window.next_button.state == "disabled"
+    assert window.download_button.state == "disabled"
+
+
+def test_update_navigation_buttons_disables_navigation_during_download() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(
+        urls=["https://example.com/watch?v=123"],
+        destination="C:/Downloads",
+        active_step_index=len(WIZARD_STEPS) - 1,
+    )
+    window.is_downloading = True
+    window.back_button = FakeButton()
+    window.next_button = FakeButton()
+    window.download_button = FakeButton()
+
+    window._update_navigation_buttons()
+
+    assert window.back_button.state == "disabled"
     assert window.next_button.state == "disabled"
     assert window.download_button.state == "disabled"
 

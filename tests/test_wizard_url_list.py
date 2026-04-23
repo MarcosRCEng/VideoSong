@@ -36,10 +36,19 @@ class FakeLabel:
         self.fg = fg
 
 
+class FakeControl:
+    def __init__(self) -> None:
+        self.state = None
+
+    def configure(self, *, state: str) -> None:
+        self.state = state
+
+
 class FakeListbox:
     def __init__(self, selection: tuple[int, ...] = ()) -> None:
         self.selection = selection
         self.items: list[str] = []
+        self.state = None
 
     def delete(self, _start: int, _end: object = None) -> None:
         self.items = []
@@ -50,16 +59,23 @@ class FakeListbox:
     def curselection(self) -> tuple[int, ...]:
         return self.selection
 
+    def configure(self, *, state: str) -> None:
+        self.state = state
+
 
 class FakeText:
     def __init__(self, value: str = "") -> None:
         self.value = value
+        self.state = None
 
     def get(self, _start: str, _end: object = None) -> str:
         return self.value
 
     def delete(self, _start: str, _end: object = None) -> None:
         self.value = ""
+
+    def configure(self, *, state: str) -> None:
+        self.state = state
 
 
 def make_window(*, urls: list[str] | None = None, destination: str = "C:/Downloads", mode: str = "video") -> MainWindow:
@@ -74,8 +90,10 @@ def make_window(*, urls: list[str] | None = None, destination: str = "C:/Downloa
     window.destination_label_var = FakeVar("")
     window.status_var = FakeVar("")
     window.status_label = FakeLabel()
+    window.is_downloading = False
     window.urls_listbox = FakeListbox()
     window.bulk_urls_text = FakeText()
+    window._editable_widgets = []
     return window
 
 
@@ -157,6 +175,21 @@ def test_handle_add_url_reports_validation_error() -> None:
     assert window.status_label.fg == "#a12622"
 
 
+def test_update_editable_controls_disables_widgets_during_download() -> None:
+    window = make_window()
+    first_control = FakeControl()
+    second_control = FakeControl()
+    window._editable_widgets = [first_control, window.bulk_urls_text, window.urls_listbox, second_control]
+    window.is_downloading = True
+
+    window._update_editable_controls()
+
+    assert first_control.state == "disabled"
+    assert window.bulk_urls_text.state == "disabled"
+    assert window.urls_listbox.state == "disabled"
+    assert second_control.state == "disabled"
+
+
 def test_handle_add_urls_batch_updates_state_and_listbox() -> None:
     window = make_window(urls=["https://example.com/existing"])
     window.bulk_urls_text = FakeText("https://example.com/a\nurl-invalida\nhttps://example.com/existing\nhttps://example.com/b")
@@ -190,6 +223,28 @@ def test_handle_add_urls_batch_reports_blank_input() -> None:
     assert window.status_label.fg == "#a12622"
 
 
+def test_handle_add_url_ignores_edits_during_download() -> None:
+    window = make_window()
+    window.is_downloading = True
+    window.current_url_var.set("https://example.com/watch?v=123")
+
+    window._handle_add_url()
+
+    assert window.state.urls == []
+    assert window.current_url_var.get() == "https://example.com/watch?v=123"
+
+
+def test_handle_add_urls_batch_ignores_edits_during_download() -> None:
+    window = make_window()
+    window.is_downloading = True
+    window.bulk_urls_text = FakeText("https://example.com/a")
+
+    window._handle_add_urls_batch()
+
+    assert window.state.urls == []
+    assert window.bulk_urls_text.value == "https://example.com/a"
+
+
 def test_handle_remove_url_updates_state_and_listbox() -> None:
     window = make_window(urls=["https://example.com/a", "https://example.com/b"])
     window.urls_listbox = FakeListbox(selection=(0,))
@@ -200,6 +255,18 @@ def test_handle_remove_url_updates_state_and_listbox() -> None:
     assert window.state.urls == ["https://example.com/b"]
     assert window.urls_listbox.items == ["https://example.com/b"]
     assert window.urls_label_var.get() == "1 URL(s) na lista atual."
+
+
+def test_handle_remove_url_ignores_edits_during_download() -> None:
+    window = make_window(urls=["https://example.com/a", "https://example.com/b"])
+    window.is_downloading = True
+    window.urls_listbox = FakeListbox(selection=(0,))
+    window._refresh_urls_listbox()
+
+    window._handle_remove_url()
+
+    assert window.state.urls == ["https://example.com/a", "https://example.com/b"]
+    assert window.urls_listbox.items == ["https://example.com/a", "https://example.com/b"]
 
 
 def test_handle_remove_url_requires_selection() -> None:
