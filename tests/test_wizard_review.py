@@ -1,4 +1,5 @@
 from src.videosong.ui.main_window import MainWindow
+from src.videosong.services.download_queue import update_download_item
 from src.videosong.ui.wizard_review import build_review_summary
 from src.videosong.ui.wizard_state import WizardState
 
@@ -37,6 +38,8 @@ def test_build_review_summary_lists_format_destination_and_url_count() -> None:
     assert "Quantidade de URLs: 2" in summary
     assert "Estado: pronto para execucao." in summary
     assert "todas as URLs da fila serao processadas em ordem, uma por vez." in summary
+    assert "1. https://example.com/a | Aguardando | Aguardando processamento." in summary
+    assert "2. https://example.com/b | Aguardando | Aguardando processamento." in summary
 
 
 def test_build_review_summary_marks_missing_required_data() -> None:
@@ -45,6 +48,27 @@ def test_build_review_summary_marks_missing_required_data() -> None:
     assert "Pasta de destino: Nao selecionada" in summary
     assert "Quantidade de URLs: 0" in summary
     assert "Estado: pendente, faltam a pasta de destino e a lista de URLs." in summary
+    assert "Nenhum item na fila ainda." in summary
+
+
+def test_build_review_summary_uses_live_download_items_when_provided() -> None:
+    state = WizardState(
+        urls=["https://example.com/very/long/path/that/needs/to/be/truncated/because/it/is/too/large"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    running_item = update_download_item(
+        state.download_items[0],
+        status="running",
+        message="Baixando metadados do item.",
+    )
+
+    summary = build_review_summary(state, [running_item])
+
+    assert "Baixando" in summary
+    assert "Baixando metadados do item." in summary
+    assert "..." in summary
 
 
 def test_handle_next_blocks_advance_without_destination() -> None:

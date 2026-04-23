@@ -61,7 +61,8 @@ class MainWindow:
         self.step_progress_var = tk.StringVar()
         self.destination_label_var = tk.StringVar(value=build_destination_label(""))
         self.flow_var = tk.StringVar(value=build_flow_summary(self.state))
-        self.review_summary_var = tk.StringVar(value=build_review_summary(self.state))
+        self.download_items = self.state.download_items
+        self.review_summary_var = tk.StringVar(value=build_review_summary(self.state, self.download_items))
         self.urls_label_var = tk.StringVar(value=build_urls_label(self.state.urls))
         self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
@@ -163,14 +164,45 @@ class MainWindow:
             if self.destination_var.get() != current_default_destination:
                 self.destination_var.set(current_default_destination)
 
-        self.flow_var.set(build_flow_summary(self.state))
-        self.review_summary_var.set(build_review_summary(self.state))
-        self.destination_label_var.set(build_destination_label(self.state.destination))
-        self.urls_label_var.set(build_urls_label(self.state.urls))
+        self._refresh_derived_state()
 
     def _sync_state_from_vars(self) -> None:
         self.state.mode = self.mode_var.get()
         self.state.destination = self.destination_var.get()
+
+    def _refresh_derived_state(self) -> None:
+        self._refresh_download_items()
+        self.flow_var.set(build_flow_summary(self.state))
+        self._refresh_review_summary()
+        self.destination_label_var.set(build_destination_label(self.state.destination))
+        self.urls_label_var.set(build_urls_label(self.state.urls))
+
+    def _refresh_download_items(self) -> None:
+        current_queue = self.state.download_items
+        previous_queue = getattr(self, "download_items", [])
+        preserved_items = []
+
+        for index, item in enumerate(current_queue):
+            if index < len(previous_queue):
+                previous_item = previous_queue[index]
+                if (
+                    previous_item.url == item.url
+                    and previous_item.mode == item.mode
+                    and previous_item.destination == item.destination
+                ):
+                    preserved_items.append(previous_item)
+                    continue
+
+            preserved_items.append(item)
+
+        self.download_items = preserved_items
+
+    def _refresh_review_summary(self) -> None:
+        review_summary_var = getattr(self, "review_summary_var", None)
+        if review_summary_var is None:
+            return
+
+        review_summary_var.set(build_review_summary(self.state, self.download_items))
 
     def _build_step_progress(self) -> str:
         parts = [f"{step.index + 1}. {step.title.removeprefix(f'Passo {step.index + 1} - ')}" for step in WIZARD_STEPS]
@@ -406,7 +438,8 @@ class MainWindow:
             self._set_status(status_kind, message)
             return
 
-        queue = self.state.download_items
+        self._refresh_download_items()
+        queue = self.download_items
         has_errors = False
 
         for index, item in enumerate(queue, start=1):
@@ -416,12 +449,14 @@ class MainWindow:
                 message=f"Preparando item {index} de {len(queue)} da fila.",
             )
             queue[index - 1] = current_item
+            self._refresh_review_summary()
             self._set_status("neutral", current_item.message)
 
             status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
             final_status = "completed" if status_kind == "success" else "error"
             final_item = update_download_item(current_item, status=final_status, message=message)
             queue[index - 1] = final_item
+            self._refresh_review_summary()
             has_errors = has_errors or final_status == "error"
             self._set_status(status_kind, final_item.message)
 

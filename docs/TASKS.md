@@ -260,14 +260,14 @@ Objetivo: suportar multiplas URLs com processamento em lote.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
   commit: realizado na branch `codex/task-sprint5-download-item-model`
 
-* [ ] Implementar execucao sequencial da fila
-  dev: processar URLs uma a uma
-  test: multiplos downloads + pytest
-  commit: pendente
+* [x] Implementar execucao sequencial da fila
+  dev: `MainWindow` agora percorre `self.state.download_items` em ordem, marca cada item como `running` antes do `start_download()`, atualiza para `completed` ou `error` ao final e continua a fila mesmo quando um item falha; mensagens de revisao/resumo foram ajustadas para refletir o processamento sequencial de toda a lista
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
+  commit: realizado na branch `codex/task-sprint5-download-item-model`
 
-* [ ] Exibir status por item
-  dev: aguardando, baixando, concluido, erro
-  test: transicoes de estado + pytest
+* [x] Exibir status por item
+  dev: etapa de revisao agora mostra uma lista por item com URL curta, status e mensagem; `MainWindow` mantem `self.download_items` como colecao executavel viva e atualiza essa fila durante a rodada de download, preservando os estados ja conhecidos quando o fluxo base nao muda
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
   commit: pendente
 
 * [ ] Exibir resumo global da fila

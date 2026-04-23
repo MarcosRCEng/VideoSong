@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from src.videosong.services.download_queue import DownloadItem
 from src.videosong.ui.wizard_state import WizardState
 
 
-def build_review_summary(state: WizardState) -> str:
+def build_review_summary(state: WizardState, download_items: list[DownloadItem] | None = None) -> str:
     destination = state.destination.strip() or "Nao selecionada"
     readiness = build_review_readiness_label(state)
+    queue_lines = build_download_items_summary(download_items or state.download_items)
 
     return "\n".join(
         [
@@ -14,6 +16,8 @@ def build_review_summary(state: WizardState) -> str:
             f"Quantidade de URLs: {len(state.urls)}",
             f"Estado: {readiness}",
             "Execucao desta sprint: todas as URLs da fila serao processadas em ordem, uma por vez.",
+            "Fila atual:",
+            *queue_lines,
         ]
     )
 
@@ -68,6 +72,35 @@ def _build_mode_label(mode: str) -> str:
         return "Somente audio"
 
     return "Video completo"
+
+
+def build_download_items_summary(download_items: list[DownloadItem]) -> list[str]:
+    if not download_items:
+        return ["Nenhum item na fila ainda."]
+
+    return [
+        f"{index}. {build_short_url(item.url)} | {build_status_label(item.status)} | {item.message}"
+        for index, item in enumerate(download_items, start=1)
+    ]
+
+
+def build_short_url(url: str, max_length: int = 48) -> str:
+    clean_url = url.strip()
+
+    if len(clean_url) <= max_length:
+        return clean_url
+
+    return f"{clean_url[: max_length - 3].rstrip('/')}..."
+
+
+def build_status_label(status: str) -> str:
+    labels = {
+        "pending": "Aguardando",
+        "running": "Baixando",
+        "completed": "Concluido",
+        "error": "Erro",
+    }
+    return labels.get(status, "Desconhecido")
 
 
 def _collect_missing_fields(state: WizardState) -> list[str]:
