@@ -13,7 +13,7 @@ def build_review_summary(state: WizardState) -> str:
             f"Pasta de destino: {destination}",
             f"Quantidade de URLs: {len(state.urls)}",
             f"Estado: {readiness}",
-            "Execucao desta sprint: somente a primeira URL da lista sera enviada ao servico atual.",
+            "Execucao desta sprint: todas as URLs da fila serao processadas em ordem, uma por vez.",
         ]
     )
 
@@ -58,7 +58,7 @@ def build_status_feedback(state: WizardState) -> tuple[str, str]:
         "success",
         (
             f"Revisao concluida: {len(state.urls)} URL(s), formato {mode_label} e destino definido em {state.destination.strip()}. "
-            f"Nesta sprint, a execucao minima iniciara somente a primeira URL da lista: {state.primary_url}."
+            "Nesta sprint, a fila sera executada em ordem e continuara para os proximos itens mesmo se algum download falhar."
         ),
     )
 

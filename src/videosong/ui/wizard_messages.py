@@ -34,8 +34,7 @@ def build_flow_summary(state: WizardState) -> str:
         return f"Passo 3: pasta definida em {destination}. Adicione ao menos uma URL valida para liberar a revisao final."
 
     mode_label = "video" if state.mode == "video" else "audio"
-    first_url = state.primary_url
     return (
         f"Passo 4: formato {mode_label} selecionado, pasta definida em {destination} e {len(state.urls)} URL(s) pronta(s). "
-        f"Nesta sprint, o download sera iniciado pela primeira URL da lista: {first_url}."
+        "Nesta sprint, a fila sera processada em ordem, uma URL por vez."
     )

@@ -197,8 +197,7 @@ def test_build_flow_summary_describes_audio_flow_with_destination() -> None:
     )
 
     assert "formato audio" in summary
-    assert "primeira URL da lista" in summary
-    assert "https://example.com/watch?v=123" in summary
+    assert "fila sera processada em ordem" in summary
 
 
 def test_build_destination_label_describes_selected_folder() -> None:
@@ -238,7 +237,7 @@ def test_build_status_feedback_returns_success_with_url() -> None:
     assert status_kind == "success"
     assert "audio" in message
     assert "C:/Downloads" in message
-    assert "primeira URL da lista" in message
+    assert "continuara para os proximos itens mesmo se algum download falhar" in message
 
 
 def test_build_status_feedback_returns_success_for_video_mode() -> None:
@@ -805,61 +804,61 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
 
     window._handle_download()
 
-    assert window.status_var.get() == "baixado audio em C:/Downloads"
+    assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s)."
     assert window.status_label.fg == "#1f6f43"
 
 
-def test_handle_download_builds_first_queue_item_before_calling_service(monkeypatch) -> None:
+def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(urls=[" https://example.com/first ", "https://example.com/second"])
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar(" C:/Downloads ")
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
-    captured: dict[str, str] = {}
+    captured: list[tuple[str, str, str]] = []
 
     def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
-        captured["url"] = url
-        captured["mode"] = mode
-        captured["destination"] = destination
+        captured.append((url, mode, destination))
         return ("success", "item concluido")
 
     monkeypatch.setattr(main_window, "start_download", fake_start_download)
 
     window._handle_download()
 
-    assert captured == {
-        "url": "https://example.com/first",
-        "mode": "audio",
-        "destination": "C:/Downloads",
-    }
-    assert window.status_var.get() == "item concluido"
+    assert captured == [
+        ("https://example.com/first", "audio", "C:/Downloads"),
+        ("https://example.com/second", "audio", "C:/Downloads"),
+    ]
+    assert window.status_var.get() == "Fila finalizada com 2 item(ns) concluido(s)."
 
 
-def test_handle_download_uses_first_url_from_list(monkeypatch) -> None:
+def test_handle_download_continues_queue_after_error(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(urls=["https://example.com/first", "https://example.com/second"])
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Downloads")
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
-    captured: dict[str, str] = {}
+    captured: list[str] = []
 
     def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
-        captured["url"] = url
-        captured["mode"] = mode
-        captured["destination"] = destination
-        return ("success", "ok")
+        del mode, destination
+        captured.append(url)
+        if url.endswith("first"):
+            return ("error", "falhou no primeiro")
+
+        return ("success", "segundo concluido")
 
     monkeypatch.setattr(main_window, "start_download", fake_start_download)
 
     window._handle_download()
 
-    assert captured == {
-        "url": "https://example.com/first",
-        "mode": "video",
-        "destination": "C:/Downloads",
-    }
+    assert captured == [
+        "https://example.com/first",
+        "https://example.com/second",
+    ]
+    assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s) e 1 com erro."
+    assert window.status_label.fg == "#a12622"
 
 
 def test_set_status_updates_message_and_success_color() -> None:

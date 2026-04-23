@@ -36,6 +36,7 @@ def test_build_review_summary_lists_format_destination_and_url_count() -> None:
     assert "Pasta de destino: C:/Music" in summary
     assert "Quantidade de URLs: 2" in summary
     assert "Estado: pronto para execucao." in summary
+    assert "todas as URLs da fila serao processadas em ordem, uma por vez." in summary
 
 
 def test_build_review_summary_marks_missing_required_data() -> None:
