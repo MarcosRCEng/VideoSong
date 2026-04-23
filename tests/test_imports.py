@@ -265,6 +265,7 @@ def test_handle_form_change_updates_wizard_state_and_summary() -> None:
 
     assert window.state.mode == "audio"
     assert window.state.destination == "C:/Downloads"
+    assert len(window.download_items) == 0
     assert window.flow_var.get() == build_flow_summary(window.state)
     assert window.review_summary_var.get() == build_review_summary(window.state)
     assert window.destination_label_var.get() == build_destination_label("C:/Downloads")
@@ -804,6 +805,8 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
 
     window._handle_download()
 
+    assert len(window.download_items) == 1
+    assert window.download_items[0].status == "completed"
     assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s)."
     assert window.status_label.fg == "#1f6f43"
 
@@ -813,6 +816,7 @@ def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
     window.state = WizardState(urls=[" https://example.com/first ", "https://example.com/second"])
     window.mode_var = FakeVar("audio")
     window.destination_var = FakeVar(" C:/Downloads ")
+    window.review_summary_var = FakeVar()
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
     captured: list[tuple[str, str, str]] = []
@@ -829,6 +833,9 @@ def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
         ("https://example.com/first", "audio", "C:/Downloads"),
         ("https://example.com/second", "audio", "C:/Downloads"),
     ]
+    assert [item.status for item in window.download_items] == ["completed", "completed"]
+    assert "1. https://example.com/first | Concluido | item concluido" in window.review_summary_var.get()
+    assert "2. https://example.com/second | Concluido | item concluido" in window.review_summary_var.get()
     assert window.status_var.get() == "Fila finalizada com 2 item(ns) concluido(s)."
 
 
@@ -837,6 +844,7 @@ def test_handle_download_continues_queue_after_error(monkeypatch) -> None:
     window.state = WizardState(urls=["https://example.com/first", "https://example.com/second"])
     window.mode_var = FakeVar("video")
     window.destination_var = FakeVar("C:/Downloads")
+    window.review_summary_var = FakeVar()
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
     captured: list[str] = []
@@ -857,8 +865,33 @@ def test_handle_download_continues_queue_after_error(monkeypatch) -> None:
         "https://example.com/first",
         "https://example.com/second",
     ]
+    assert [item.status for item in window.download_items] == ["error", "completed"]
+    assert "1. https://example.com/first | Erro | falhou no primeiro" in window.review_summary_var.get()
+    assert "2. https://example.com/second | Concluido | segundo concluido" in window.review_summary_var.get()
     assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s) e 1 com erro."
     assert window.status_label.fg == "#a12622"
+
+
+def test_refresh_download_items_preserves_existing_status_for_same_queue() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(
+        urls=["https://example.com/first"],
+        mode="audio",
+        destination="C:/Downloads",
+    )
+    window.download_items = [
+        update_download_item(
+            build_download_item("https://example.com/first", "audio", "C:/Downloads"),
+            status="running",
+            message="Baixando agora.",
+        )
+    ]
+
+    window._refresh_download_items()
+
+    assert len(window.download_items) == 1
+    assert window.download_items[0].status == "running"
+    assert window.download_items[0].message == "Baixando agora."
 
 
 def test_set_status_updates_message_and_success_color() -> None:
