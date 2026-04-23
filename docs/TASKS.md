@@ -275,9 +275,9 @@ Objetivo: suportar multiplas URLs com processamento em lote.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
   commit: pendente
 
-* [ ] Bloquear edicao durante execucao
-  dev: desabilitar controles ativos
-  test: validacao de bloqueio + pytest
+* [x] Bloquear edicao durante execucao
+  dev: `MainWindow` agora usa `is_downloading` para desabilitar navegacao e controles editaveis da etapa atual, alem de ignorar handlers de formato, pasta e lista de URLs enquanto a fila estiver em execucao
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_url_list.py tests/test_wizard_review.py`
   commit: pendente
 
 ---

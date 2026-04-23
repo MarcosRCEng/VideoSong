@@ -66,8 +66,10 @@ class MainWindow:
         self.urls_label_var = tk.StringVar(value=build_urls_label(self.state.urls))
         self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
+        self.is_downloading = False
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
+        self._editable_widgets: list[tk.Widget] = []
         self._wrap_widgets: list[tuple[tk.Widget, int, int]] = []
         self._base_wrap_widgets_count = 0
 
@@ -149,6 +151,9 @@ class MainWindow:
         self._apply_wraplengths()
 
     def _handle_form_change(self, *_args: object) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         previous_mode = self.state.mode
         previous_destination = self.state.destination
         self._sync_state_from_vars()
@@ -213,6 +218,7 @@ class MainWindow:
         self.step_progress_var.set(self._build_step_progress())
         self.step_title_var.set(step.title)
         self.step_description_var.set(step.description)
+        self._editable_widgets = []
         self._wrap_widgets = self._wrap_widgets[: self._base_wrap_widgets_count]
 
         for child in self.step_container.winfo_children():
@@ -226,16 +232,18 @@ class MainWindow:
         }
         builders[step.key](self.step_container, step)
         self._update_navigation_buttons()
+        self._update_editable_controls()
         self._apply_wraplengths()
 
     def _build_format_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
         parent.columnconfigure(0, weight=1)
         modes = ttk.Frame(parent)
         modes.grid(row=0, column=0, sticky="w", pady=(4, 12))
-        ttk.Radiobutton(modes, text="Video completo", value="video", variable=self.mode_var).grid(row=0, column=0, sticky="w")
-        ttk.Radiobutton(modes, text="Somente audio", value="audio", variable=self.mode_var).grid(
-            row=0, column=1, sticky="w", padx=(16, 0)
-        )
+        video_button = ttk.Radiobutton(modes, text="Video completo", value="video", variable=self.mode_var)
+        video_button.grid(row=0, column=0, sticky="w")
+        audio_button = ttk.Radiobutton(modes, text="Somente audio", value="audio", variable=self.mode_var)
+        audio_button.grid(row=0, column=1, sticky="w", padx=(16, 0))
+        self._editable_widgets.extend([video_button, audio_button])
         helper_label = ttk.Label(
             parent,
             text="Escolha video para manter imagem e som, ou audio para extrair apenas a faixa sonora.",
@@ -246,9 +254,9 @@ class MainWindow:
 
     def _build_destination_step(self, parent: ttk.Frame, _step: WizardStep) -> None:
         parent.columnconfigure(0, weight=1)
-        ttk.Button(parent, text="Escolher pasta", command=self._handle_choose_destination).grid(
-            row=0, column=0, sticky="w", pady=(4, 8)
-        )
+        choose_button = ttk.Button(parent, text="Escolher pasta", command=self._handle_choose_destination)
+        choose_button.grid(row=0, column=0, sticky="w", pady=(4, 8))
+        self._editable_widgets.append(choose_button)
         destination_label = ttk.Label(parent, textvariable=self.destination_label_var, foreground="#555555")
         destination_label.grid(row=1, column=0, sticky="ew")
         self._register_wrap_widget(destination_label, reserved_space=100, minimum=260)
@@ -260,8 +268,11 @@ class MainWindow:
         input_row = ttk.Frame(parent)
         input_row.grid(row=0, column=0, sticky="ew", pady=(4, 8))
         input_row.columnconfigure(0, weight=1)
-        ttk.Entry(input_row, textvariable=self.current_url_var).grid(row=0, column=0, sticky="ew")
-        ttk.Button(input_row, text="Adicionar URL", command=self._handle_add_url).grid(row=0, column=1, sticky="e", padx=(8, 0))
+        url_entry = ttk.Entry(input_row, textvariable=self.current_url_var)
+        url_entry.grid(row=0, column=0, sticky="ew")
+        add_url_button = ttk.Button(input_row, text="Adicionar URL", command=self._handle_add_url)
+        add_url_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self._editable_widgets.extend([url_entry, add_url_button])
 
         intro_label = ttk.Label(
             parent,
@@ -276,18 +287,21 @@ class MainWindow:
         bulk_frame.columnconfigure(0, weight=1)
         self.bulk_urls_text = tk.Text(bulk_frame, height=4, wrap="word")
         self.bulk_urls_text.grid(row=0, column=0, sticky="ew")
-        ttk.Button(bulk_frame, text="Adicionar em lote", command=self._handle_add_urls_batch).grid(
-            row=0, column=1, sticky="ne", padx=(8, 0)
-        )
+        add_batch_button = ttk.Button(bulk_frame, text="Adicionar em lote", command=self._handle_add_urls_batch)
+        add_batch_button.grid(row=0, column=1, sticky="ne", padx=(8, 0))
+        self._editable_widgets.extend([self.bulk_urls_text, add_batch_button])
 
         self.urls_listbox = tk.Listbox(parent, height=7, exportselection=False)
         self.urls_listbox.grid(row=3, column=0, sticky="nsew", pady=(0, 8))
+        self._editable_widgets.append(self.urls_listbox)
         self._refresh_urls_listbox()
 
         actions = ttk.Frame(parent)
         actions.grid(row=4, column=0, sticky="ew")
         actions.columnconfigure(1, weight=1)
-        ttk.Button(actions, text="Remover selecionada", command=self._handle_remove_url).grid(row=0, column=0, sticky="w")
+        remove_button = ttk.Button(actions, text="Remover selecionada", command=self._handle_remove_url)
+        remove_button.grid(row=0, column=0, sticky="w")
+        self._editable_widgets.append(remove_button)
         ttk.Label(actions, textvariable=self.urls_label_var, foreground="#555555").grid(
             row=0, column=1, sticky="w", padx=(12, 0)
         )
@@ -320,15 +334,45 @@ class MainWindow:
             self._apply_wraplengths(width=event.width)
 
     def _update_navigation_buttons(self) -> None:
-        self.back_button.configure(state="normal" if self.state.can_go_back() else "disabled")
-        self.next_button.configure(state="normal" if self.state.can_go_next() and can_advance_from_step(self.state) else "disabled")
-        self.download_button.configure(state="normal" if self.state.active_step.key == "review" else "disabled")
+        back_button = getattr(self, "back_button", None)
+        next_button = getattr(self, "next_button", None)
+        download_button = getattr(self, "download_button", None)
+
+        if getattr(self, "is_downloading", False):
+            if back_button is not None:
+                back_button.configure(state="disabled")
+            if next_button is not None:
+                next_button.configure(state="disabled")
+            if download_button is not None:
+                download_button.configure(state="disabled")
+            return
+
+        if back_button is not None:
+            back_button.configure(state="normal" if self.state.can_go_back() else "disabled")
+        if next_button is not None:
+            next_button.configure(
+                state="normal" if self.state.can_go_next() and can_advance_from_step(self.state) else "disabled"
+            )
+        if download_button is not None:
+            download_button.configure(state="normal" if self.state.active_step.key == "review" else "disabled")
+
+    def _update_editable_controls(self) -> None:
+        state = "disabled" if getattr(self, "is_downloading", False) else "normal"
+
+        for widget in getattr(self, "_editable_widgets", []):
+            widget.configure(state=state)
 
     def _handle_back(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         if self.state.go_back():
             self._render_active_step()
 
     def _handle_next(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         blocker = get_next_step_blocker(self.state)
         if blocker:
             self._set_status("error", blocker)
@@ -338,6 +382,9 @@ class MainWindow:
             self._render_active_step()
 
     def _handle_choose_destination(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         selected_directory = filedialog.askdirectory(title="Escolher pasta de destino")
 
         if not selected_directory:
@@ -358,6 +405,9 @@ class MainWindow:
             self.urls_listbox.insert(tk.END, url)
 
     def _handle_add_url(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         updated_urls, error = add_url(self.state.urls, self.current_url_var.get())
 
         if error:
@@ -371,6 +421,9 @@ class MainWindow:
         self._set_status("neutral", f"URL adicionada. Lista atual com {len(self.state.urls)} item(ns).")
 
     def _handle_add_urls_batch(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         if self.bulk_urls_text is None:
             return
 
@@ -395,6 +448,9 @@ class MainWindow:
         self._set_status(status_kind, f"{message} Lista atual com {len(self.state.urls)} item(ns).")
 
     def _handle_remove_url(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         if self.urls_listbox is None:
             return
 
@@ -431,6 +487,9 @@ class MainWindow:
         )
 
     def _handle_download(self) -> None:
+        if getattr(self, "is_downloading", False):
+            return
+
         self._sync_state_from_vars()
         status_kind, message = build_status_feedback(self.state)
 
@@ -441,24 +500,32 @@ class MainWindow:
         self._refresh_download_items()
         queue = self.download_items
         has_errors = False
+        self.is_downloading = True
+        self._update_navigation_buttons()
+        self._update_editable_controls()
 
-        for index, item in enumerate(queue, start=1):
-            current_item = update_download_item(
-                item,
-                status="running",
-                message=f"Preparando item {index} de {len(queue)} da fila.",
-            )
-            queue[index - 1] = current_item
-            self._refresh_review_summary()
-            self._set_status("neutral", current_item.message)
+        try:
+            for index, item in enumerate(queue, start=1):
+                current_item = update_download_item(
+                    item,
+                    status="running",
+                    message=f"Preparando item {index} de {len(queue)} da fila.",
+                )
+                queue[index - 1] = current_item
+                self._refresh_review_summary()
+                self._set_status("neutral", current_item.message)
 
-            status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
-            final_status = "completed" if status_kind == "success" else "error"
-            final_item = update_download_item(current_item, status=final_status, message=message)
-            queue[index - 1] = final_item
-            self._refresh_review_summary()
-            has_errors = has_errors or final_status == "error"
-            self._set_status(status_kind, final_item.message)
+                status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
+                final_status = "completed" if status_kind == "success" else "error"
+                final_item = update_download_item(current_item, status=final_status, message=message)
+                queue[index - 1] = final_item
+                self._refresh_review_summary()
+                has_errors = has_errors or final_status == "error"
+                self._set_status(status_kind, final_item.message)
+        finally:
+            self.is_downloading = False
+            self._update_navigation_buttons()
+            self._update_editable_controls()
 
         completed_count = sum(1 for item in queue if item.status == "completed")
         error_count = sum(1 for item in queue if item.status == "error")
