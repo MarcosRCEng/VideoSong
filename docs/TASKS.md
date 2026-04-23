@@ -182,6 +182,11 @@ Status: Parcialmente concluido
   test: validar `python -m pytest -q` cobrindo gravacao do log e mensagens de erro com caminho do arquivo
   commit: realizado na branch `codex/task-logs-erro-e-build-final-exe`
 
+* [x] Adicionar instalador Windows com documentacao de distribuicao
+  dev: `scripts\VideoSongInstaller.iss`, `scripts\build_installer.ps1` e `scripts\build_installer.cmd` adicionados para gerar um instalador Windows baseado em Inno Setup a partir de `dist\VideoSong.exe`; `README.md` agora documenta a geracao e o uso do `VideoSong-<release>-setup.exe`
+  test: compilacao local validada com `scripts\build_installer.cmd local`, confirmando a geracao de `dist\releases\VideoSong-local-setup.exe`
+  commit: realizado na branch `codex/task-doc-installer-windows`
+
 ---
 
 ## Sprint 3 - Nova Experiencia de Interface (Wizard + Lista)
@@ -268,17 +273,17 @@ Objetivo: suportar multiplas URLs com processamento em lote.
 * [x] Exibir status por item
   dev: etapa de revisao agora mostra uma lista por item com URL curta, status e mensagem; `MainWindow` mantem `self.download_items` como colecao executavel viva e atualiza essa fila durante a rodada de download, preservando os estados ja conhecidos quando o fluxo base nao muda
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint5-status-por-item`
 
 * [x] Exibir resumo global da fila
   dev: etapa de revisao agora mostra um resumo global derivado da fila visivel com total, concluidos, erros e em andamento; os contadores usam a mesma colecao renderizada na lista por item e sao atualizados a cada refresh de estado da fila
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_wizard_review.py tests/test_imports.py`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint5-resumo-global-fila`
 
 * [x] Bloquear edicao durante execucao
   dev: `MainWindow` agora usa `is_downloading` para desabilitar navegacao e controles editaveis da etapa atual, alem de ignorar handlers de formato, pasta e lista de URLs enquanto a fila estiver em execucao
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_url_list.py tests/test_wizard_review.py`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint5-bloquear-edicao-execucao`
 
 ---
 

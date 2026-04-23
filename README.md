@@ -78,6 +78,8 @@ Setup automatico no Windows:
 .\scripts\setup_windows.ps1
 ```
 
+Ou, para usuarios finais, use o instalador Windows gerado em `dist\releases\VideoSong-<release>-setup.exe`.
+
 Validacao manual depois do setup:
 
 ```powershell
@@ -145,16 +147,31 @@ Gerar o executavel localmente:
 .\scripts\build_windows.ps1 -ReleaseLabel sprint-2
 ```
 
+Gerar o instalador Windows a partir do executavel ja empacotado:
+
+```powershell
+.\scripts\build_installer.ps1 -ReleaseLabel sprint-2
+```
+
+Ou sem PowerShell:
+
+```bat
+scripts\build_installer.cmd sprint-2
+```
+
 Saida esperada:
 
 - `dist\VideoSong.exe`
 - `dist\releases\VideoSong-sprint-2.exe`
+- `dist\releases\VideoSong-sprint-2-setup.exe`
 
 Observacoes:
 
 - o script usa uma pasta temporaria isolada do Windows para o PyInstaller e depois publica o resultado final em `dist\`, evitando residuos travados de builds anteriores
 - o build exige `Node.js`, `ffmpeg` e `ffprobe` utilizaveis na maquina de empacotamento
 - quando presentes, `ffmpeg` e `ffprobe` sao embutidos no pacote final para evitar dependencia extra na maquina de destino
+- o instalador Windows usa Inno Setup 6 e copia o `VideoSong.exe` para `Program Files\VideoSong`, criando atalhos basicos
+- durante a instalacao, o setup oferece instalar `Node.js` LTS via `winget` quando ele ainda nao estiver disponivel na maquina
 - use um `ReleaseLabel` por sprint fechada, como `sprint-2`, para manter um executavel versionado por marco do projeto
 
 ## Logs Locais
@@ -168,6 +185,12 @@ Executar o binario gerado:
 
 ```powershell
 .\dist\VideoSong.exe
+```
+
+Executar o instalador gerado:
+
+```powershell
+.\dist\releases\VideoSong-sprint-2-setup.exe
 ```
 
 ## Fluxo de Trabalho
