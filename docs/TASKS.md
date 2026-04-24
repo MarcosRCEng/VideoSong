@@ -294,27 +294,27 @@ Objetivo: UI responsiva e feedback completo de download.
 * [x] Executar downloads em thread separada
   dev: `MainWindow` agora inicia a fila em uma `Thread` daemon e aplica atualizacoes na UI por uma fila de eventos consumida com `after()`, mantendo a rodada fora da thread principal do Tk
   test: `.\.venv\Scripts\python.exe -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint6-thread-separada` (`618168c`)
 
 * [x] Integrar progress_hooks do yt-dlp
   dev: `download_service.py` agora registra `progress_hooks`, normaliza eventos do `yt-dlp` em percentual, velocidade e ETA, e repassa esses dados por item para a fila executada pela UI
   test: `.\.venv\Scripts\python.exe -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint6-progress-hooks` (`e57b31b`)
 
 * [x] Exibir progresso por item
   dev: etapa de revisao renderiza uma barra individual por item da fila usando o percentual recebido pelos eventos de progresso do download
   test: `.\.venv\Scripts\python.exe -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint6-progresso-por-item` (`687fda2`)
 
 * [x] Exibir progresso global
   dev: etapa de revisao agora exibe uma barra e um texto de progresso global calculados a partir dos itens visiveis da fila; itens concluidos ou com erro contam como processados, itens em execucao usam o percentual atual e pendentes contam como 0
   test: calculo agregado coberto em pytest e validado com `.\.venv\Scripts\python.exe -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint6-progresso-global` (`f0ce236`)
 
 * [x] Exibir tempo, velocidade e ETA
   dev: UI de revisao agora exibe tempo decorrido, velocidade e ETA do item atual usando dados normalizados dos `progress_hooks` do `yt-dlp`
   test: exibicao e formatacao cobertas por pytest; `.\.venv\Scripts\python.exe -m pytest -q`
-  commit: pendente
+  commit: realizado na branch `codex/task-sprint6-tempo-velocidade-eta` (`5349c02`)
 
 ---
 
