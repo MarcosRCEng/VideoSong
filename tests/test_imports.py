@@ -1,4 +1,5 @@
 import os
+from queue import Queue
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -75,9 +76,13 @@ class FakeContainer:
 class FakeRoot:
     def __init__(self, width: int = 800) -> None:
         self.width = width
+        self.after_calls: list[tuple[int, object]] = []
 
     def winfo_width(self) -> int:
         return self.width
+
+    def after(self, delay: int, callback: object) -> None:
+        self.after_calls.append((delay, callback))
 
 
 class FakeWrapWidget:
@@ -830,6 +835,74 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
     assert window.download_items[0].status == "completed"
     assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s)."
     assert window.status_label.fg == "#1f6f43"
+
+
+def test_handle_download_starts_worker_thread_without_running_queue_on_ui(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(urls=["https://example.com/watch?v=123"])
+    window.mode_var = FakeVar("audio")
+    window.destination_var = FakeVar("C:/Downloads")
+    window.review_summary_var = FakeVar()
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    window.root = FakeRoot()
+    started_threads: list[object] = []
+    service_calls: list[str] = []
+
+    class FakeThread:
+        def __init__(self, *, target: object, args: tuple[object, ...], daemon: bool) -> None:
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self) -> None:
+            started_threads.append(self)
+
+    monkeypatch.setattr(main_window, "Thread", FakeThread)
+    monkeypatch.setattr(
+        main_window,
+        "start_download",
+        lambda url, mode, destination: service_calls.append(url) or ("success", "baixado"),
+    )
+
+    window._handle_download()
+
+    assert window.is_downloading is True
+    assert len(started_threads) == 1
+    assert service_calls == []
+    assert window.root.after_calls == [(100, window._poll_download_events)]
+
+
+def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(urls=["https://example.com/first", "https://example.com/second"])
+    window.download_items = window.state.download_items
+    window.download_events = Queue()
+    window.is_downloading = True
+    window.root = FakeRoot()
+    window.review_summary_var = FakeVar()
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    captured: list[str] = []
+
+    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+        del mode, destination
+        captured.append(url)
+        if url.endswith("first"):
+            return ("success", "primeiro concluido")
+        return ("error", "segundo falhou")
+
+    monkeypatch.setattr(main_window, "start_download", fake_start_download)
+
+    window._run_download_queue_worker(list(window.download_items))
+    window._poll_download_events()
+
+    assert captured == ["https://example.com/first", "https://example.com/second"]
+    assert [item.status for item in window.download_items] == ["completed", "error"]
+    assert window.is_downloading is False
+    assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s) e 1 com erro."
+    assert "1. https://example.com/first | Concluido | primeiro concluido" in window.review_summary_var.get()
+    assert "2. https://example.com/second | Erro | segundo falhou" in window.review_summary_var.get()
 
 
 def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:

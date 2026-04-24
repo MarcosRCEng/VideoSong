@@ -291,9 +291,9 @@ Objetivo: suportar multiplas URLs com processamento em lote.
 
 Objetivo: UI responsiva e feedback completo de download.
 
-* [ ] Executar downloads em thread separada
-  dev: uso de threading + fila de eventos
-  test: UI responsiva + pytest
+* [x] Executar downloads em thread separada
+  dev: `MainWindow` agora inicia a fila em uma `Thread` daemon e aplica atualizacoes na UI por uma fila de eventos consumida com `after()`, mantendo a rodada fora da thread principal do Tk
+  test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
 * [ ] Integrar progress_hooks do yt-dlp
