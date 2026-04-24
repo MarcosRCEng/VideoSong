@@ -36,6 +36,8 @@ from src.videosong.ui.wizard_messages import (
 from src.videosong.ui.wizard_review import (
     build_item_progress_label,
     build_item_progress_percent,
+    build_queue_progress_label,
+    build_queue_progress_percent,
     build_review_summary,
     build_short_url,
     build_status_feedback,
@@ -77,6 +79,8 @@ class MainWindow:
         self.download_thread: Thread | None = None
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
+        self.global_progress_label_var = tk.StringVar(value="Progresso global: 0.0%")
+        self.global_progress_bar: ttk.Progressbar | None = None
         self.review_queue_frame: ttk.Frame | None = None
         self._editable_widgets: list[tk.Widget] = []
         self._wrap_widgets: list[tuple[tk.Widget, int, int]] = []
@@ -323,16 +327,20 @@ class MainWindow:
         review_summary_label = ttk.Label(parent, textvariable=self.review_summary_var, justify="left")
         review_summary_label.grid(row=1, column=0, sticky="ew", pady=(4, 12))
         self._register_wrap_widget(review_summary_label, reserved_space=100, minimum=260)
-        ttk.Label(parent, text="Progresso por item").grid(row=2, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(parent, textvariable=self.global_progress_label_var).grid(row=2, column=0, sticky="w")
+        self.global_progress_bar = ttk.Progressbar(parent, maximum=100, mode="determinate")
+        self.global_progress_bar.grid(row=3, column=0, sticky="ew", pady=(2, 12))
+        ttk.Label(parent, text="Progresso por item").grid(row=4, column=0, sticky="w", pady=(0, 4))
         self.review_queue_frame = ttk.Frame(parent)
-        self.review_queue_frame.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        self.review_queue_frame.grid(row=5, column=0, sticky="ew", pady=(0, 12))
         self.review_queue_frame.columnconfigure(0, weight=1)
         self._refresh_review_progress_rows()
         flow_label = ttk.Label(parent, textvariable=self.flow_var, foreground="#555555")
-        flow_label.grid(row=4, column=0, sticky="ew")
+        flow_label.grid(row=6, column=0, sticky="ew")
         self._register_wrap_widget(flow_label, reserved_space=100, minimum=260)
 
     def _refresh_review_progress_rows(self) -> None:
+        self._refresh_global_progress()
         frame = getattr(self, "review_queue_frame", None)
         if frame is None:
             return
@@ -359,6 +367,16 @@ class MainWindow:
                 mode="determinate",
             )
             progress_bar.grid(row=index * 2 + 1, column=0, sticky="ew", pady=(0, 8))
+
+    def _refresh_global_progress(self) -> None:
+        progress = build_queue_progress_percent(self.download_items)
+        progress_label_var = getattr(self, "global_progress_label_var", None)
+        if progress_label_var is not None:
+            progress_label_var.set(f"Progresso global: {build_queue_progress_label(self.download_items)}")
+
+        progress_bar = getattr(self, "global_progress_bar", None)
+        if progress_bar is not None:
+            progress_bar.configure(value=progress)
 
     def _register_wrap_widget(self, widget: tk.Widget, reserved_space: int, minimum: int) -> None:
         self._wrap_widgets.append((widget, reserved_space, minimum))

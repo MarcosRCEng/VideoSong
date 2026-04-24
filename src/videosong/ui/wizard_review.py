@@ -25,6 +25,7 @@ def build_review_summary(state: WizardState, download_items: list[DownloadItem] 
                 f"Erros {queue_totals['error']} | "
                 f"Em andamento {queue_totals['running']}"
             ),
+            f"Progresso global: {build_queue_progress_label(queue)}",
             "Fila atual:",
             *queue_lines,
         ]
@@ -113,7 +114,7 @@ def build_status_label(status: str) -> str:
 
 
 def build_item_progress_percent(item: DownloadItem) -> float:
-    if item.status == "completed":
+    if item.status in {"completed", "error"}:
         return 100.0
 
     if item.progress_percent is None:
@@ -125,6 +126,18 @@ def build_item_progress_percent(item: DownloadItem) -> float:
 def build_item_progress_label(item: DownloadItem) -> str:
     progress = build_item_progress_percent(item)
     return f"{progress:.1f}%"
+
+
+def build_queue_progress_percent(download_items: list[DownloadItem]) -> float:
+    if not download_items:
+        return 0.0
+
+    total_progress = sum(build_item_progress_percent(item) for item in download_items)
+    return total_progress / len(download_items)
+
+
+def build_queue_progress_label(download_items: list[DownloadItem]) -> str:
+    return f"{build_queue_progress_percent(download_items):.1f}%"
 
 
 def build_download_queue_totals(download_items: list[DownloadItem]) -> dict[str, int]:
