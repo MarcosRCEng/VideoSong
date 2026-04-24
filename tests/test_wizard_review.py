@@ -1,6 +1,8 @@
 from src.videosong.ui.main_window import MainWindow
 from src.videosong.services.download_queue import update_download_item
 from src.videosong.ui.wizard_review import (
+    build_download_metrics_label,
+    build_item_metrics_label,
     build_item_progress_label,
     build_item_progress_percent,
     build_queue_progress_label,
@@ -97,6 +99,32 @@ def test_build_item_progress_uses_download_progress_percent() -> None:
 
     assert build_item_progress_percent(running_item) == 42.345
     assert build_item_progress_label(running_item) == "42.3%"
+
+
+def test_build_item_metrics_formats_time_speed_and_eta() -> None:
+    state = WizardState(
+        urls=["https://example.com/a"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    running_item = update_download_item(
+        state.download_items[0],
+        status="running",
+        speed_bytes_per_second=1536,
+        eta_seconds=65,
+        elapsed_seconds=7,
+    )
+
+    assert build_item_metrics_label(running_item) == "Tempo 00:07 | Velocidade 1.5 KB/s | ETA 01:05"
+    assert (
+        build_download_metrics_label(
+            elapsed_seconds=None,
+            speed_bytes_per_second=None,
+            eta_seconds=None,
+        )
+        == "Tempo -- | Velocidade -- | ETA --"
+    )
 
 
 def test_build_item_progress_marks_completed_as_full() -> None:

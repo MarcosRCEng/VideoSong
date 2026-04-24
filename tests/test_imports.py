@@ -733,6 +733,7 @@ def test_build_download_progress_normalizes_ytdlp_event() -> None:
             "total_bytes": 1000,
             "speed": 512.5,
             "eta": 7,
+            "elapsed": 3,
         }
     )
 
@@ -741,6 +742,7 @@ def test_build_download_progress_normalizes_ytdlp_event() -> None:
     assert progress.percent == 25.0
     assert progress.speed == 512.5
     assert progress.eta == 7
+    assert progress.elapsed == 3
 
 
 def test_build_download_progress_uses_estimated_total_and_finished_percent() -> None:
@@ -766,11 +768,12 @@ def test_build_download_options_registers_progress_hook() -> None:
         options = build_download_options("video", "C:/Downloads", captured.append)
 
     hook = options["progress_hooks"][0]
-    hook({"status": "downloading", "downloaded_bytes": 2, "total_bytes": 4, "speed": 10, "eta": 3})
+    hook({"status": "downloading", "downloaded_bytes": 2, "total_bytes": 4, "speed": 10, "eta": 3, "elapsed": 5})
 
     assert captured[0].percent == 50.0
     assert captured[0].speed == 10.0
     assert captured[0].eta == 3
+    assert captured[0].elapsed == 5
 
 
 @patch("src.videosong.services.download_service.Path.mkdir")
@@ -978,6 +981,7 @@ def test_worker_applies_progress_callback_to_current_item(monkeypatch) -> None:
                 "total_bytes": 100,
                 "speed": 2048,
                 "eta": 12,
+                "elapsed": 8,
             }
         )
         progress_callback(progress)
@@ -992,6 +996,8 @@ def test_worker_applies_progress_callback_to_current_item(monkeypatch) -> None:
     assert item.progress_percent == 100.0
     assert item.speed_bytes_per_second == 2048.0
     assert item.eta_seconds == 12
+    assert item.elapsed_seconds == 8
+    assert "Tempo 00:08 | Velocidade 2.0 KB/s | ETA 00:12" in window.review_summary_var.get()
 
 
 def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
