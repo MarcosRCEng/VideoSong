@@ -21,6 +21,9 @@ class DownloadItem:
     destination: str
     status: DownloadItemStatus = "pending"
     message: str = DEFAULT_STATUS_MESSAGES["pending"]
+    progress_percent: float | None = None
+    speed_bytes_per_second: float | None = None
+    eta_seconds: int | None = None
 
 
 def build_download_item(url: str, mode: str, destination: str) -> DownloadItem:
@@ -43,10 +46,20 @@ def update_download_item(
     *,
     status: DownloadItemStatus,
     message: str | None = None,
+    progress_percent: float | None = None,
+    speed_bytes_per_second: float | None = None,
+    eta_seconds: int | None = None,
 ) -> DownloadItem:
     validate_download_item_status(status)
     next_message = (message or DEFAULT_STATUS_MESSAGES[status]).strip()
-    return replace(item, status=status, message=next_message)
+    return replace(
+        item,
+        status=status,
+        message=next_message,
+        progress_percent=progress_percent,
+        speed_bytes_per_second=speed_bytes_per_second,
+        eta_seconds=eta_seconds,
+    )
 
 
 def validate_download_item_status(status: str) -> None:

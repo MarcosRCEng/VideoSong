@@ -296,9 +296,9 @@ Objetivo: UI responsiva e feedback completo de download.
   test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
-* [ ] Integrar progress_hooks do yt-dlp
-  dev: capturar percentual, velocidade e ETA
-  test: validacao de eventos + pytest
+* [x] Integrar progress_hooks do yt-dlp
+  dev: `download_service.py` agora registra `progress_hooks`, normaliza eventos do `yt-dlp` em percentual, velocidade e ETA, e repassa esses dados por item para a fila executada pela UI
+  test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
 * [ ] Exibir progresso por item

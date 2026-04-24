@@ -13,6 +13,7 @@ from src.videosong.services.download_queue import (
 from src.videosong.services.download_service import (
     DownloadError,
     build_download_options,
+    build_download_progress,
     find_ffmpeg_binary_path,
     find_ffmpeg_location,
     find_js_runtime_options,
@@ -724,6 +725,54 @@ def test_find_ffmpeg_location_returns_none_when_ffprobe_is_missing() -> None:
         assert find_ffmpeg_location() is None
 
 
+def test_build_download_progress_normalizes_ytdlp_event() -> None:
+    progress = build_download_progress(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 250,
+            "total_bytes": 1000,
+            "speed": 512.5,
+            "eta": 7,
+        }
+    )
+
+    assert progress is not None
+    assert progress.status == "downloading"
+    assert progress.percent == 25.0
+    assert progress.speed == 512.5
+    assert progress.eta == 7
+
+
+def test_build_download_progress_uses_estimated_total_and_finished_percent() -> None:
+    estimated = build_download_progress(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 30,
+            "total_bytes_estimate": 60,
+        }
+    )
+    finished = build_download_progress({"status": "finished"})
+
+    assert estimated is not None
+    assert estimated.percent == 50.0
+    assert finished is not None
+    assert finished.percent == 100.0
+
+
+def test_build_download_options_registers_progress_hook() -> None:
+    captured = []
+
+    with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+        options = build_download_options("video", "C:/Downloads", captured.append)
+
+    hook = options["progress_hooks"][0]
+    hook({"status": "downloading", "downloaded_bytes": 2, "total_bytes": 4, "speed": 10, "eta": 3})
+
+    assert captured[0].percent == 50.0
+    assert captured[0].speed == 10.0
+    assert captured[0].eta == 3
+
+
 @patch("src.videosong.services.download_service.Path.mkdir")
 @patch("src.videosong.services.download_service.YoutubeDL")
 def test_start_download_calls_ytdlp(mock_ytdl: MagicMock, mock_mkdir: MagicMock) -> None:
@@ -827,7 +876,11 @@ def test_handle_download_uses_service_when_validation_passes(monkeypatch) -> Non
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
 
-    monkeypatch.setattr(main_window, "start_download", lambda url, mode, destination: ("success", f"baixado {mode} em {destination}"))
+    monkeypatch.setattr(
+        main_window,
+        "start_download",
+        lambda url, mode, destination, progress_callback=None: ("success", f"baixado {mode} em {destination}"),
+    )
 
     window._handle_download()
 
@@ -862,7 +915,7 @@ def test_handle_download_starts_worker_thread_without_running_queue_on_ui(monkey
     monkeypatch.setattr(
         main_window,
         "start_download",
-        lambda url, mode, destination: service_calls.append(url) or ("success", "baixado"),
+        lambda url, mode, destination, progress_callback=None: service_calls.append(url) or ("success", "baixado"),
     )
 
     window._handle_download()
@@ -885,7 +938,7 @@ def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
     window.status_label = FakeLabel()
     captured: list[str] = []
 
-    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+    def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
         del mode, destination
         captured.append(url)
         if url.endswith("first"):
@@ -905,6 +958,42 @@ def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
     assert "2. https://example.com/second | Erro | segundo falhou" in window.review_summary_var.get()
 
 
+def test_worker_applies_progress_callback_to_current_item(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(urls=["https://example.com/first"])
+    window.download_items = window.state.download_items
+    window.download_events = Queue()
+    window.is_downloading = True
+    window.root = FakeRoot()
+    window.review_summary_var = FakeVar()
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+
+    def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
+        del url, mode, destination
+        progress = build_download_progress(
+            {
+                "status": "downloading",
+                "downloaded_bytes": 40,
+                "total_bytes": 100,
+                "speed": 2048,
+                "eta": 12,
+            }
+        )
+        progress_callback(progress)
+        return ("success", "item concluido")
+
+    monkeypatch.setattr(main_window, "start_download", fake_start_download)
+
+    window._run_download_queue_worker(list(window.download_items))
+    window._poll_download_events()
+
+    item = window.download_items[0]
+    assert item.progress_percent == 100.0
+    assert item.speed_bytes_per_second == 2048.0
+    assert item.eta_seconds == 12
+
+
 def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(urls=[" https://example.com/first ", "https://example.com/second"])
@@ -915,7 +1004,7 @@ def test_handle_download_processes_queue_items_in_order(monkeypatch) -> None:
     window.status_label = FakeLabel()
     captured: list[tuple[str, str, str]] = []
 
-    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+    def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
         captured.append((url, mode, destination))
         return ("success", "item concluido")
 
@@ -943,7 +1032,7 @@ def test_handle_download_continues_queue_after_error(monkeypatch) -> None:
     window.status_label = FakeLabel()
     captured: list[str] = []
 
-    def fake_start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+    def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
         del mode, destination
         captured.append(url)
         if url.endswith("first"):
