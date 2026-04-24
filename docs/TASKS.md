@@ -306,9 +306,9 @@ Objetivo: UI responsiva e feedback completo de download.
   test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
-* [ ] Exibir progresso global
-  dev: percentual total da fila
-  test: calculo agregado + pytest
+* [x] Exibir progresso global
+  dev: etapa de revisao agora exibe uma barra e um texto de progresso global calculados a partir dos itens visiveis da fila; itens concluidos ou com erro contam como processados, itens em execucao usam o percentual atual e pendentes contam como 0
+  test: calculo agregado coberto em pytest e validado com `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
 * [ ] Exibir tempo, velocidade e ETA

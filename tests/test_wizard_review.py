@@ -3,6 +3,8 @@ from src.videosong.services.download_queue import update_download_item
 from src.videosong.ui.wizard_review import (
     build_item_progress_label,
     build_item_progress_percent,
+    build_queue_progress_label,
+    build_queue_progress_percent,
     build_review_summary,
 )
 from src.videosong.ui.wizard_state import WizardState
@@ -43,6 +45,7 @@ def test_build_review_summary_lists_format_destination_and_url_count() -> None:
     assert "Estado: pronto para execucao." in summary
     assert "todas as URLs da fila serao processadas em ordem, uma por vez." in summary
     assert "Resumo global da fila: Total 2 | Concluidos 0 | Erros 0 | Em andamento 0" in summary
+    assert "Progresso global: 0.0%" in summary
     assert "1. https://example.com/a | Aguardando | Aguardando processamento." in summary
     assert "2. https://example.com/b | Aguardando | Aguardando processamento." in summary
 
@@ -54,6 +57,7 @@ def test_build_review_summary_marks_missing_required_data() -> None:
     assert "Quantidade de URLs: 0" in summary
     assert "Estado: pendente, faltam a pasta de destino e a lista de URLs." in summary
     assert "Resumo global da fila: Total 0 | Concluidos 0 | Erros 0 | Em andamento 0" in summary
+    assert "Progresso global: 0.0%" in summary
     assert "Nenhum item na fila ainda." in summary
 
 
@@ -108,6 +112,40 @@ def test_build_item_progress_marks_completed_as_full() -> None:
     assert build_item_progress_label(completed_item) == "100.0%"
 
 
+def test_build_item_progress_marks_error_as_processed() -> None:
+    state = WizardState(
+        urls=["https://example.com/a"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    error_item = update_download_item(state.download_items[0], status="error")
+
+    assert build_item_progress_percent(error_item) == 100.0
+    assert build_item_progress_label(error_item) == "100.0%"
+
+
+def test_build_queue_progress_aggregates_visible_items() -> None:
+    state = WizardState(
+        urls=[
+            "https://example.com/a",
+            "https://example.com/b",
+            "https://example.com/c",
+            "https://example.com/d",
+        ],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    queue = state.download_items
+    queue[0] = update_download_item(queue[0], status="completed")
+    queue[1] = update_download_item(queue[1], status="error")
+    queue[2] = update_download_item(queue[2], status="running", progress_percent=50.0)
+
+    assert build_queue_progress_percent(queue) == 62.5
+    assert build_queue_progress_label(queue) == "62.5%"
+
+
 def test_build_review_summary_aggregates_counts_from_visible_queue() -> None:
     state = WizardState(
         urls=[
@@ -128,6 +166,7 @@ def test_build_review_summary_aggregates_counts_from_visible_queue() -> None:
     summary = build_review_summary(state, queue)
 
     assert "Resumo global da fila: Total 4 | Concluidos 1 | Erros 1 | Em andamento 1" in summary
+    assert "Progresso global: 50.0%" in summary
     assert "1. https://example.com/a | Concluido | Download concluido com sucesso." in summary
     assert "2. https://example.com/b | Erro | Falha de teste." in summary
     assert "3. https://example.com/c | Baixando | Baixando agora." in summary
