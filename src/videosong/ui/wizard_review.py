@@ -112,6 +112,21 @@ def build_status_label(status: str) -> str:
     return labels.get(status, "Desconhecido")
 
 
+def build_item_progress_percent(item: DownloadItem) -> float:
+    if item.status == "completed":
+        return 100.0
+
+    if item.progress_percent is None:
+        return 0.0
+
+    return min(100.0, max(0.0, item.progress_percent))
+
+
+def build_item_progress_label(item: DownloadItem) -> str:
+    progress = build_item_progress_percent(item)
+    return f"{progress:.1f}%"
+
+
 def build_download_queue_totals(download_items: list[DownloadItem]) -> dict[str, int]:
     return {
         "total": len(download_items),
