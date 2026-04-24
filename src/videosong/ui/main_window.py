@@ -7,7 +7,7 @@ from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
 from src.videosong.services.download_queue import DownloadItem, update_download_item
-from src.videosong.services.download_service import start_download
+from src.videosong.services.download_service import DownloadProgress, start_download
 from src.videosong.services.settings_service import (
     get_last_destination,
     get_last_mode,
@@ -533,9 +533,42 @@ class MainWindow:
                 }
             )
 
-            status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
+            def handle_progress(progress: DownloadProgress) -> None:
+                nonlocal current_item
+                progress_message = self._build_progress_message(index, len(queue), progress)
+                current_item = update_download_item(
+                    current_item,
+                    status="running",
+                    message=progress_message,
+                    progress_percent=progress.percent,
+                    speed_bytes_per_second=progress.speed,
+                    eta_seconds=progress.eta,
+                )
+                queue[index] = current_item
+                self.download_events.put(
+                    {
+                        "type": "item",
+                        "index": index,
+                        "item": current_item,
+                        "status_kind": "neutral",
+                    }
+                )
+
+            status_kind, message = start_download(
+                current_item.url,
+                current_item.mode,
+                current_item.destination,
+                progress_callback=handle_progress,
+            )
             final_status = "completed" if status_kind == "success" else "error"
-            final_item = update_download_item(current_item, status=final_status, message=message)
+            final_item = update_download_item(
+                current_item,
+                status=final_status,
+                message=message,
+                progress_percent=100.0 if final_status == "completed" else current_item.progress_percent,
+                speed_bytes_per_second=current_item.speed_bytes_per_second,
+                eta_seconds=current_item.eta_seconds,
+            )
             queue[index] = final_item
             has_errors = has_errors or final_status == "error"
             self.download_events.put(
@@ -555,6 +588,16 @@ class MainWindow:
                 "has_errors": has_errors,
             }
         )
+
+    def _build_progress_message(self, index: int, total: int, progress: DownloadProgress) -> str:
+        parts = [f"Baixando item {index + 1} de {total}."]
+        if progress.percent is not None:
+            parts.append(f"{progress.percent:.1f}%")
+        if progress.speed is not None:
+            parts.append(f"{progress.speed:.0f} bytes/s")
+        if progress.eta is not None:
+            parts.append(f"ETA {progress.eta}s")
+        return " ".join(parts)
 
     def _poll_download_events(self) -> None:
         while True:

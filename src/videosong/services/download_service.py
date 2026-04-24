@@ -1,5 +1,7 @@
 import os
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
 from subprocess import DEVNULL, run
@@ -8,6 +10,17 @@ from urllib.parse import urlparse
 from yt_dlp import DownloadError, YoutubeDL
 
 from src.videosong.services.error_log import write_error_log
+
+
+@dataclass(frozen=True, slots=True)
+class DownloadProgress:
+    status: str
+    percent: float | None
+    speed: float | None
+    eta: int | None
+
+
+ProgressCallback = Callable[[DownloadProgress], None]
 
 
 def is_youtube_url(url: str) -> bool:
@@ -142,12 +155,68 @@ def find_js_runtime_options() -> dict[str, dict[str, str]]:
     return {"node": {"path": node_path}}
 
 
-def build_download_options(mode: str, destination: str) -> dict[str, object]:
+def _as_float(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    return None
+
+
+def _as_int(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, int):
+        return value
+
+    if isinstance(value, float):
+        return int(value)
+
+    return None
+
+
+def build_download_progress(event: dict[str, object]) -> DownloadProgress | None:
+    status = str(event.get("status", "")).strip()
+    if status not in {"downloading", "finished"}:
+        return None
+
+    downloaded_bytes = _as_float(event.get("downloaded_bytes"))
+    total_bytes = _as_float(event.get("total_bytes")) or _as_float(event.get("total_bytes_estimate"))
+    percent = None
+    if downloaded_bytes is not None and total_bytes and total_bytes > 0:
+        percent = min(100.0, max(0.0, (downloaded_bytes / total_bytes) * 100))
+    elif status == "finished":
+        percent = 100.0
+
+    return DownloadProgress(
+        status=status,
+        percent=percent,
+        speed=_as_float(event.get("speed")),
+        eta=_as_int(event.get("eta")),
+    )
+
+
+def build_download_options(
+    mode: str,
+    destination: str,
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, object]:
     output_template = str(Path(destination.strip()) / "%(title)s.%(ext)s")
     options: dict[str, object] = {
         "noplaylist": True,
         "outtmpl": output_template,
     }
+
+    if progress_callback is not None:
+        def progress_hook(event: dict[str, object]) -> None:
+            progress = build_download_progress(event)
+            if progress is not None:
+                progress_callback(progress)
+
+        options["progress_hooks"] = [progress_hook]
 
     js_runtimes = find_js_runtime_options()
     if js_runtimes:
@@ -181,7 +250,12 @@ def build_download_options(mode: str, destination: str) -> dict[str, object]:
     return options
 
 
-def start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
+def start_download(
+    url: str,
+    mode: str,
+    destination: str,
+    progress_callback: ProgressCallback | None = None,
+) -> tuple[str, str]:
     clean_url = url.strip()
     clean_mode = "audio" if mode == "audio" else "video"
     clean_destination = destination.strip()
@@ -208,7 +282,7 @@ def start_download(url: str, mode: str, destination: str) -> tuple[str, str]:
     try:
         Path(clean_destination).mkdir(parents=True, exist_ok=True)
 
-        with YoutubeDL(build_download_options(clean_mode, clean_destination)) as downloader:
+        with YoutubeDL(build_download_options(clean_mode, clean_destination, progress_callback)) as downloader:
             downloader.download([clean_url])
     except DownloadError as error:
         log_file = write_error_log("Falha de download retornada pelo yt-dlp.", error)
