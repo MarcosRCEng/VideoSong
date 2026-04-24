@@ -1,10 +1,12 @@
 import tkinter as tk
+from queue import Empty, Queue
 from collections.abc import Callable
+from threading import Thread
 from types import TracebackType
 from tkinter import END, filedialog, ttk
 
 from src.videosong.services.error_log import write_error_log
-from src.videosong.services.download_queue import update_download_item
+from src.videosong.services.download_queue import DownloadItem, update_download_item
 from src.videosong.services.download_service import start_download
 from src.videosong.services.settings_service import (
     get_last_destination,
@@ -67,6 +69,8 @@ class MainWindow:
         self.status_var = tk.StringVar(value="Status inicial: escolha o formato, defina a pasta e monte a lista de URLs.")
         self.status_color = "#1f1f1f"
         self.is_downloading = False
+        self.download_events: Queue[dict[str, object]] = Queue()
+        self.download_thread: Thread | None = None
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
         self._editable_widgets: list[tk.Widget] = []
@@ -498,37 +502,95 @@ class MainWindow:
             return
 
         self._refresh_download_items()
-        queue = self.download_items
-        has_errors = False
         self.is_downloading = True
         self._update_navigation_buttons()
         self._update_editable_controls()
+        self.download_events = Queue()
+        self.download_thread = Thread(
+            target=self._run_download_queue_worker,
+            args=(list(self.download_items),),
+            daemon=True,
+        )
+        self.download_thread.start()
+        self._poll_download_events()
 
-        try:
-            for index, item in enumerate(queue, start=1):
-                current_item = update_download_item(
-                    item,
-                    status="running",
-                    message=f"Preparando item {index} de {len(queue)} da fila.",
-                )
-                queue[index - 1] = current_item
+    def _run_download_queue_worker(self, queue: list[DownloadItem]) -> None:
+        has_errors = False
+
+        for index, item in enumerate(queue):
+            current_item = update_download_item(
+                item,
+                status="running",
+                message=f"Preparando item {index + 1} de {len(queue)} da fila.",
+            )
+            queue[index] = current_item
+            self.download_events.put(
+                {
+                    "type": "item",
+                    "index": index,
+                    "item": current_item,
+                    "status_kind": "neutral",
+                }
+            )
+
+            status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
+            final_status = "completed" if status_kind == "success" else "error"
+            final_item = update_download_item(current_item, status=final_status, message=message)
+            queue[index] = final_item
+            has_errors = has_errors or final_status == "error"
+            self.download_events.put(
+                {
+                    "type": "item",
+                    "index": index,
+                    "item": final_item,
+                    "status_kind": status_kind,
+                }
+            )
+
+        self.download_events.put(
+            {
+                "type": "done",
+                "completed_count": sum(1 for item in queue if item.status == "completed"),
+                "error_count": sum(1 for item in queue if item.status == "error"),
+                "has_errors": has_errors,
+            }
+        )
+
+    def _poll_download_events(self) -> None:
+        while True:
+            try:
+                event = self.download_events.get_nowait()
+            except Empty:
+                break
+
+            self._apply_download_event(event)
+
+        if getattr(self, "is_downloading", False):
+            self.root.after(100, self._poll_download_events)
+
+    def _apply_download_event(self, event: dict[str, object]) -> None:
+        event_type = event.get("type")
+
+        if event_type == "item":
+            index = event["index"]
+            item = event["item"]
+            if isinstance(index, int) and isinstance(item, DownloadItem):
+                self.download_items[index] = item
                 self._refresh_review_summary()
-                self._set_status("neutral", current_item.message)
+                self._set_status(str(event.get("status_kind", "neutral")), item.message)
+            return
 
-                status_kind, message = start_download(current_item.url, current_item.mode, current_item.destination)
-                final_status = "completed" if status_kind == "success" else "error"
-                final_item = update_download_item(current_item, status=final_status, message=message)
-                queue[index - 1] = final_item
-                self._refresh_review_summary()
-                has_errors = has_errors or final_status == "error"
-                self._set_status(status_kind, final_item.message)
-        finally:
-            self.is_downloading = False
-            self._update_navigation_buttons()
-            self._update_editable_controls()
+        if event_type != "done":
+            return
 
-        completed_count = sum(1 for item in queue if item.status == "completed")
-        error_count = sum(1 for item in queue if item.status == "error")
+        completed_count = int(event.get("completed_count", 0))
+        error_count = int(event.get("error_count", 0))
+        has_errors = bool(event.get("has_errors", False))
+        self.is_downloading = False
+        self.download_thread = None
+        self._update_navigation_buttons()
+        self._update_editable_controls()
+
         if has_errors:
             self._set_status(
                 "error",
