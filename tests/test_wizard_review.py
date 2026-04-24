@@ -1,6 +1,10 @@
 from src.videosong.ui.main_window import MainWindow
 from src.videosong.services.download_queue import update_download_item
-from src.videosong.ui.wizard_review import build_review_summary
+from src.videosong.ui.wizard_review import (
+    build_item_progress_label,
+    build_item_progress_percent,
+    build_review_summary,
+)
 from src.videosong.ui.wizard_state import WizardState
 
 
@@ -74,6 +78,36 @@ def test_build_review_summary_uses_live_download_items_when_provided() -> None:
     assert "..." in summary
 
 
+def test_build_item_progress_uses_download_progress_percent() -> None:
+    state = WizardState(
+        urls=["https://example.com/a"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    running_item = update_download_item(
+        state.download_items[0],
+        status="running",
+        progress_percent=42.345,
+    )
+
+    assert build_item_progress_percent(running_item) == 42.345
+    assert build_item_progress_label(running_item) == "42.3%"
+
+
+def test_build_item_progress_marks_completed_as_full() -> None:
+    state = WizardState(
+        urls=["https://example.com/a"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    completed_item = update_download_item(state.download_items[0], status="completed")
+
+    assert build_item_progress_percent(completed_item) == 100.0
+    assert build_item_progress_label(completed_item) == "100.0%"
+
+
 def test_build_review_summary_aggregates_counts_from_visible_queue() -> None:
     state = WizardState(
         urls=[
@@ -98,6 +132,41 @@ def test_build_review_summary_aggregates_counts_from_visible_queue() -> None:
     assert "2. https://example.com/b | Erro | Falha de teste." in summary
     assert "3. https://example.com/c | Baixando | Baixando agora." in summary
     assert "4. https://example.com/d | Aguardando | Aguardando processamento." in summary
+
+
+def test_apply_download_event_refreshes_item_progress() -> None:
+    state = WizardState(
+        urls=["https://example.com/a"],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    item = update_download_item(
+        state.download_items[0],
+        status="running",
+        message="Baixando item 1 de 1. 37.5%",
+        progress_percent=37.5,
+    )
+    window = MainWindow.__new__(MainWindow)
+    window.state = state
+    window.download_items = state.download_items
+    window.review_summary_var = FakeVar()
+    window.review_queue_frame = None
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+
+    window._apply_download_event(
+        {
+            "type": "item",
+            "index": 0,
+            "item": item,
+            "status_kind": "neutral",
+        }
+    )
+
+    assert window.download_items[0].progress_percent == 37.5
+    assert "Baixando item 1 de 1. 37.5%" in window.review_summary_var.get()
+    assert window.status_var.get() == "Baixando item 1 de 1. 37.5%"
 
 
 def test_handle_next_blocks_advance_without_destination() -> None:

@@ -34,8 +34,12 @@ from src.videosong.ui.wizard_messages import (
     build_urls_label,
 )
 from src.videosong.ui.wizard_review import (
+    build_item_progress_label,
+    build_item_progress_percent,
     build_review_summary,
+    build_short_url,
     build_status_feedback,
+    build_status_label,
     can_advance_from_step,
     get_next_step_blocker,
 )
@@ -73,6 +77,7 @@ class MainWindow:
         self.download_thread: Thread | None = None
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
+        self.review_queue_frame: ttk.Frame | None = None
         self._editable_widgets: list[tk.Widget] = []
         self._wrap_widgets: list[tuple[tk.Widget, int, int]] = []
         self._base_wrap_widgets_count = 0
@@ -212,6 +217,7 @@ class MainWindow:
             return
 
         review_summary_var.set(build_review_summary(self.state, self.download_items))
+        self._refresh_review_progress_rows()
 
     def _build_step_progress(self) -> str:
         parts = [f"{step.index + 1}. {step.title.removeprefix(f'Passo {step.index + 1} - ')}" for step in WIZARD_STEPS]
@@ -224,6 +230,7 @@ class MainWindow:
         self.step_description_var.set(step.description)
         self._editable_widgets = []
         self._wrap_widgets = self._wrap_widgets[: self._base_wrap_widgets_count]
+        self.review_queue_frame = None
 
         for child in self.step_container.winfo_children():
             child.destroy()
@@ -316,9 +323,42 @@ class MainWindow:
         review_summary_label = ttk.Label(parent, textvariable=self.review_summary_var, justify="left")
         review_summary_label.grid(row=1, column=0, sticky="ew", pady=(4, 12))
         self._register_wrap_widget(review_summary_label, reserved_space=100, minimum=260)
+        ttk.Label(parent, text="Progresso por item").grid(row=2, column=0, sticky="w", pady=(0, 4))
+        self.review_queue_frame = ttk.Frame(parent)
+        self.review_queue_frame.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        self.review_queue_frame.columnconfigure(0, weight=1)
+        self._refresh_review_progress_rows()
         flow_label = ttk.Label(parent, textvariable=self.flow_var, foreground="#555555")
-        flow_label.grid(row=2, column=0, sticky="ew")
+        flow_label.grid(row=4, column=0, sticky="ew")
         self._register_wrap_widget(flow_label, reserved_space=100, minimum=260)
+
+    def _refresh_review_progress_rows(self) -> None:
+        frame = getattr(self, "review_queue_frame", None)
+        if frame is None:
+            return
+
+        for child in frame.winfo_children():
+            child.destroy()
+
+        if not self.download_items:
+            ttk.Label(frame, text="Nenhum item na fila ainda.", foreground="#555555").grid(
+                row=0, column=0, sticky="w"
+            )
+            return
+
+        for index, item in enumerate(self.download_items):
+            item_label = (
+                f"{index + 1}. {build_short_url(item.url, max_length=44)} | "
+                f"{build_status_label(item.status)} | {build_item_progress_label(item)}"
+            )
+            ttk.Label(frame, text=item_label).grid(row=index * 2, column=0, sticky="ew", pady=(0, 2))
+            progress_bar = ttk.Progressbar(
+                frame,
+                maximum=100,
+                value=build_item_progress_percent(item),
+                mode="determinate",
+            )
+            progress_bar.grid(row=index * 2 + 1, column=0, sticky="ew", pady=(0, 8))
 
     def _register_wrap_widget(self, widget: tk.Widget, reserved_space: int, minimum: int) -> None:
         self._wrap_widgets.append((widget, reserved_space, minimum))

@@ -301,9 +301,9 @@ Objetivo: UI responsiva e feedback completo de download.
   test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
-* [ ] Exibir progresso por item
-  dev: barra individual por download
-  test: atualizacao dinamica + pytest
+* [x] Exibir progresso por item
+  dev: etapa de revisao renderiza uma barra individual por item da fila usando o percentual recebido pelos eventos de progresso do download
+  test: `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
 * [ ] Exibir progresso global
