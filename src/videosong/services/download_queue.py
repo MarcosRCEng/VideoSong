@@ -24,6 +24,7 @@ class DownloadItem:
     progress_percent: float | None = None
     speed_bytes_per_second: float | None = None
     eta_seconds: int | None = None
+    elapsed_seconds: int | None = None
 
 
 def build_download_item(url: str, mode: str, destination: str) -> DownloadItem:
@@ -49,6 +50,7 @@ def update_download_item(
     progress_percent: float | None = None,
     speed_bytes_per_second: float | None = None,
     eta_seconds: int | None = None,
+    elapsed_seconds: int | None = None,
 ) -> DownloadItem:
     validate_download_item_status(status)
     next_message = (message or DEFAULT_STATUS_MESSAGES[status]).strip()
@@ -59,6 +61,7 @@ def update_download_item(
         progress_percent=progress_percent,
         speed_bytes_per_second=speed_bytes_per_second,
         eta_seconds=eta_seconds,
+        elapsed_seconds=elapsed_seconds,
     )
 
 

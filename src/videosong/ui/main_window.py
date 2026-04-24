@@ -36,8 +36,10 @@ from src.videosong.ui.wizard_messages import (
 from src.videosong.ui.wizard_review import (
     build_item_progress_label,
     build_item_progress_percent,
+    build_item_metrics_label,
     build_queue_progress_label,
     build_queue_progress_percent,
+    build_download_metrics_label,
     build_review_summary,
     build_short_url,
     build_status_feedback,
@@ -357,7 +359,8 @@ class MainWindow:
         for index, item in enumerate(self.download_items):
             item_label = (
                 f"{index + 1}. {build_short_url(item.url, max_length=44)} | "
-                f"{build_status_label(item.status)} | {build_item_progress_label(item)}"
+                f"{build_status_label(item.status)} | {build_item_progress_label(item)} | "
+                f"{build_item_metrics_label(item)}"
             )
             ttk.Label(frame, text=item_label).grid(row=index * 2, column=0, sticky="ew", pady=(0, 2))
             progress_bar = ttk.Progressbar(
@@ -598,9 +601,16 @@ class MainWindow:
                     current_item,
                     status="running",
                     message=progress_message,
-                    progress_percent=progress.percent,
-                    speed_bytes_per_second=progress.speed,
-                    eta_seconds=progress.eta,
+                    progress_percent=progress.percent
+                    if progress.percent is not None
+                    else current_item.progress_percent,
+                    speed_bytes_per_second=progress.speed
+                    if progress.speed is not None
+                    else current_item.speed_bytes_per_second,
+                    eta_seconds=progress.eta if progress.eta is not None else current_item.eta_seconds,
+                    elapsed_seconds=progress.elapsed
+                    if progress.elapsed is not None
+                    else current_item.elapsed_seconds,
                 )
                 queue[index] = current_item
                 self.download_events.put(
@@ -626,6 +636,7 @@ class MainWindow:
                 progress_percent=100.0 if final_status == "completed" else current_item.progress_percent,
                 speed_bytes_per_second=current_item.speed_bytes_per_second,
                 eta_seconds=current_item.eta_seconds,
+                elapsed_seconds=current_item.elapsed_seconds,
             )
             queue[index] = final_item
             has_errors = has_errors or final_status == "error"
@@ -651,10 +662,13 @@ class MainWindow:
         parts = [f"Baixando item {index + 1} de {total}."]
         if progress.percent is not None:
             parts.append(f"{progress.percent:.1f}%")
-        if progress.speed is not None:
-            parts.append(f"{progress.speed:.0f} bytes/s")
-        if progress.eta is not None:
-            parts.append(f"ETA {progress.eta}s")
+        parts.append(
+            build_download_metrics_label(
+                elapsed_seconds=progress.elapsed,
+                speed_bytes_per_second=progress.speed,
+                eta_seconds=progress.eta,
+            )
+        )
         return " ".join(parts)
 
     def _poll_download_events(self) -> None:

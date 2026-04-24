@@ -18,6 +18,7 @@ class DownloadProgress:
     percent: float | None
     speed: float | None
     eta: int | None
+    elapsed: int | None
 
 
 ProgressCallback = Callable[[DownloadProgress], None]
@@ -196,6 +197,7 @@ def build_download_progress(event: dict[str, object]) -> DownloadProgress | None
         percent=percent,
         speed=_as_float(event.get("speed")),
         eta=_as_int(event.get("eta")),
+        elapsed=_as_int(event.get("elapsed")),
     )
 
 

@@ -89,7 +89,10 @@ def build_download_items_summary(download_items: list[DownloadItem]) -> list[str
         return ["Nenhum item na fila ainda."]
 
     return [
-        f"{index}. {build_short_url(item.url)} | {build_status_label(item.status)} | {item.message}"
+        (
+            f"{index}. {build_short_url(item.url)} | {build_status_label(item.status)} | "
+            f"{item.message} | {build_item_progress_label(item)} | {build_item_metrics_label(item)}"
+        )
         for index, item in enumerate(download_items, start=1)
     ]
 
@@ -128,6 +131,27 @@ def build_item_progress_label(item: DownloadItem) -> str:
     return f"{progress:.1f}%"
 
 
+def build_item_metrics_label(item: DownloadItem) -> str:
+    return build_download_metrics_label(
+        elapsed_seconds=item.elapsed_seconds,
+        speed_bytes_per_second=item.speed_bytes_per_second,
+        eta_seconds=item.eta_seconds,
+    )
+
+
+def build_download_metrics_label(
+    *,
+    elapsed_seconds: int | None,
+    speed_bytes_per_second: float | None,
+    eta_seconds: int | None,
+) -> str:
+    return (
+        f"Tempo {_format_duration(elapsed_seconds)} | "
+        f"Velocidade {_format_speed(speed_bytes_per_second)} | "
+        f"ETA {_format_duration(eta_seconds)}"
+    )
+
+
 def build_queue_progress_percent(download_items: list[DownloadItem]) -> float:
     if not download_items:
         return 0.0
@@ -147,6 +171,35 @@ def build_download_queue_totals(download_items: list[DownloadItem]) -> dict[str,
         "error": sum(1 for item in download_items if item.status == "error"),
         "running": sum(1 for item in download_items if item.status == "running"),
     }
+
+
+def _format_duration(seconds: int | None) -> str:
+    if seconds is None or seconds < 0:
+        return "--"
+
+    hours, remainder = divmod(seconds, 3600)
+    minutes, remaining_seconds = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours:d}:{minutes:02d}:{remaining_seconds:02d}"
+
+    return f"{minutes:02d}:{remaining_seconds:02d}"
+
+
+def _format_speed(bytes_per_second: float | None) -> str:
+    if bytes_per_second is None or bytes_per_second < 0:
+        return "--"
+
+    units = ["B/s", "KB/s", "MB/s", "GB/s"]
+    speed = bytes_per_second
+
+    for unit in units:
+        if speed < 1024 or unit == units[-1]:
+            if unit == "B/s":
+                return f"{speed:.0f} {unit}"
+            return f"{speed:.1f} {unit}"
+
+        speed /= 1024
 
 
 def _collect_missing_fields(state: WizardState) -> list[str]:

@@ -311,9 +311,9 @@ Objetivo: UI responsiva e feedback completo de download.
   test: calculo agregado coberto em pytest e validado com `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
-* [ ] Exibir tempo, velocidade e ETA
-  dev: indicadores em tempo real
-  test: validacao de exibicao + pytest
+* [x] Exibir tempo, velocidade e ETA
+  dev: UI de revisao agora exibe tempo decorrido, velocidade e ETA do item atual usando dados normalizados dos `progress_hooks` do `yt-dlp`
+  test: exibicao e formatacao cobertas por pytest; `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pendente
 
 ---
