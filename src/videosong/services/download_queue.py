@@ -3,14 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Literal
 
-DownloadItemStatus = Literal["pending", "running", "completed", "error"]
-DOWNLOAD_ITEM_STATUSES: tuple[DownloadItemStatus, ...] = ("pending", "running", "completed", "error")
+DownloadItemStatus = Literal["pending", "running", "completed", "error", "canceled"]
+DOWNLOAD_ITEM_STATUSES: tuple[DownloadItemStatus, ...] = ("pending", "running", "completed", "error", "canceled")
 
 DEFAULT_STATUS_MESSAGES: dict[DownloadItemStatus, str] = {
     "pending": "Aguardando processamento.",
     "running": "Preparando download.",
     "completed": "Download concluido com sucesso.",
     "error": "Falha ao processar o download.",
+    "canceled": "Download cancelado.",
 }
 
 

@@ -23,6 +23,7 @@ def build_review_summary(state: WizardState, download_items: list[DownloadItem] 
                 f"Total {queue_totals['total']} | "
                 f"Concluidos {queue_totals['completed']} | "
                 f"Erros {queue_totals['error']} | "
+                f"Cancelados {queue_totals['canceled']} | "
                 f"Em andamento {queue_totals['running']}"
             ),
             f"Progresso global: {build_queue_progress_label(queue)}",
@@ -112,12 +113,13 @@ def build_status_label(status: str) -> str:
         "running": "Baixando",
         "completed": "Concluido",
         "error": "Erro",
+        "canceled": "Cancelado",
     }
     return labels.get(status, "Desconhecido")
 
 
 def build_item_progress_percent(item: DownloadItem) -> float:
-    if item.status in {"completed", "error"}:
+    if item.status in {"completed", "error", "canceled"}:
         return 100.0
 
     if item.progress_percent is None:
@@ -169,6 +171,7 @@ def build_download_queue_totals(download_items: list[DownloadItem]) -> dict[str,
         "total": len(download_items),
         "completed": sum(1 for item in download_items if item.status == "completed"),
         "error": sum(1 for item in download_items if item.status == "error"),
+        "canceled": sum(1 for item in download_items if item.status == "canceled"),
         "running": sum(1 for item in download_items if item.status == "running"),
     }
 
