@@ -53,9 +53,16 @@ class FakeLabel:
 class FakeButton:
     def __init__(self) -> None:
         self.state = None
+        self.visible = None
 
     def configure(self, *, state: str) -> None:
         self.state = state
+
+    def grid(self) -> None:
+        self.visible = True
+
+    def grid_remove(self) -> None:
+        self.visible = False
 
 
 class FakeChild:
@@ -438,6 +445,21 @@ def test_update_navigation_buttons_disables_navigation_during_download() -> None
     assert window.download_button.state == "disabled"
 
 
+def test_set_open_destination_button_visible_toggles_button() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.open_destination_button = FakeButton()
+
+    window._set_open_destination_button_visible(True)
+
+    assert window.can_open_destination is True
+    assert window.open_destination_button.visible is True
+
+    window._set_open_destination_button_visible(False)
+
+    assert window.can_open_destination is False
+    assert window.open_destination_button.visible is False
+
+
 def test_handle_next_advances_step_and_rerenders() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState()
@@ -560,6 +582,34 @@ def test_handle_choose_destination_keeps_destination_when_cancelled(monkeypatch)
     assert window.destination_var.get() == "C:/Existing"
     assert window.flow_var.get() == "resumo atual"
     assert window.status_var.get() == "Selecao de pasta cancelada. Escolha um destino para concluir a preparacao."
+
+
+def test_handle_open_destination_uses_explorer_without_blocking_flow(monkeypatch, tmp_path) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(destination=str(tmp_path))
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    opened: list[str] = []
+
+    monkeypatch.setattr(main_window.os, "startfile", opened.append, raising=False)
+
+    window._handle_open_destination()
+
+    assert opened == [str(tmp_path)]
+    assert window.status_var.get() == f"Pasta de destino aberta: {tmp_path}"
+    assert window.status_label.fg == "#1f6f43"
+
+
+def test_handle_open_destination_reports_missing_folder() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(destination="C:/Pasta/Inexistente")
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+
+    window._handle_open_destination()
+
+    assert window.status_var.get() == "Erro: a pasta de destino nao esta disponivel para abrir."
+    assert window.status_label.fg == "#a12622"
 
 
 def test_build_download_options_for_video_uses_mp4_preference() -> None:
@@ -939,6 +989,7 @@ def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
     window.review_summary_var = FakeVar()
     window.status_var = FakeVar()
     window.status_label = FakeLabel()
+    window.open_destination_button = FakeButton()
     captured: list[str] = []
 
     def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
@@ -956,6 +1007,8 @@ def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
     assert captured == ["https://example.com/first", "https://example.com/second"]
     assert [item.status for item in window.download_items] == ["completed", "error"]
     assert window.is_downloading is False
+    assert window.can_open_destination is True
+    assert window.open_destination_button.visible is True
     assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s) e 1 com erro."
     assert "1. https://example.com/first | Concluido | primeiro concluido" in window.review_summary_var.get()
     assert "2. https://example.com/second | Erro | segundo falhou" in window.review_summary_var.get()

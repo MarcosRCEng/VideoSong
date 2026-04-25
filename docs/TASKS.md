@@ -322,10 +322,10 @@ Objetivo: UI responsiva e feedback completo de download.
 
 Objetivo: melhorar controle e experiencia final.
 
-* [ ] Botao abrir pasta ao final
-  dev: abrir explorer automaticamente
-  test: validacao manual + pytest
-  commit: pendente
+* [x] Botao abrir pasta ao final
+  dev: botao simples exibido ao final da execucao para abrir a pasta de destino no Explorer sem alterar o fluxo principal de download
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
+  commit: pronto, aguardando autorizacao
 
 * [ ] Melhorar mensagens de erro por item
   dev: feedback claro por URL
