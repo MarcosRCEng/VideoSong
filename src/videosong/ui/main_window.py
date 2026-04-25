@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from queue import Empty, Queue
 from collections.abc import Callable
@@ -79,6 +80,7 @@ class MainWindow:
         self.is_downloading = False
         self.download_events: Queue[dict[str, object]] = Queue()
         self.download_thread: Thread | None = None
+        self.can_open_destination = False
         self.urls_listbox: tk.Listbox | None = None
         self.bulk_urls_text: tk.Text | None = None
         self.global_progress_label_var = tk.StringVar(value="Progresso global: 0.0%")
@@ -151,6 +153,13 @@ class MainWindow:
         self.next_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.download_button = ttk.Button(navigation, text="Iniciar download", command=self._handle_download)
         self.download_button.grid(row=0, column=3, sticky="e")
+        self.open_destination_button = ttk.Button(
+            navigation,
+            text="Abrir pasta",
+            command=self._handle_open_destination,
+        )
+        self.open_destination_button.grid(row=0, column=4, sticky="e", padx=(8, 0))
+        self.open_destination_button.grid_remove()
 
         ttk.Separator(container, orient="horizontal").grid(row=7, column=0, sticky="ew", pady=16)
         ttk.Label(container, text="Status").grid(row=8, column=0, sticky="w")
@@ -169,6 +178,7 @@ class MainWindow:
         if getattr(self, "is_downloading", False):
             return
 
+        self._set_open_destination_button_visible(False)
         previous_mode = self.state.mode
         previous_destination = self.state.destination
         self._sync_state_from_vars()
@@ -427,6 +437,19 @@ class MainWindow:
         for widget in getattr(self, "_editable_widgets", []):
             widget.configure(state=state)
 
+    def _set_open_destination_button_visible(self, is_visible: bool) -> None:
+        self.can_open_destination = is_visible
+        open_destination_button = getattr(self, "open_destination_button", None)
+
+        if open_destination_button is None:
+            return
+
+        if is_visible:
+            open_destination_button.grid()
+            return
+
+        open_destination_button.grid_remove()
+
     def _handle_back(self) -> None:
         if getattr(self, "is_downloading", False):
             return
@@ -460,6 +483,22 @@ class MainWindow:
         self._persist_selected_destination(selected_directory)
         self._handle_form_change()
         self._set_status("neutral", "Pasta de destino definida. Revise o resumo e valide o fluxo.")
+
+    def _handle_open_destination(self) -> None:
+        destination = self.state.destination.strip()
+
+        if not destination or not os.path.isdir(destination):
+            self._set_status("error", "Erro: a pasta de destino nao esta disponivel para abrir.")
+            return
+
+        try:
+            os.startfile(destination)  # type: ignore[attr-defined]
+        except OSError as error:
+            log_file = write_error_log("Falha ao abrir pasta de destino no Explorer.", error)
+            self._set_status("error", f"Erro ao abrir a pasta de destino. Consulte o log local em {log_file}.")
+            return
+
+        self._set_status("success", f"Pasta de destino aberta: {destination}")
 
     def _refresh_urls_listbox(self) -> None:
         if self.urls_listbox is None:
@@ -562,6 +601,7 @@ class MainWindow:
             self._set_status(status_kind, message)
             return
 
+        self._set_open_destination_button_visible(False)
         self._refresh_download_items()
         self.is_downloading = True
         self._update_navigation_buttons()
@@ -705,6 +745,7 @@ class MainWindow:
         self.download_thread = None
         self._update_navigation_buttons()
         self._update_editable_controls()
+        self._set_open_destination_button_visible(True)
 
         if has_errors:
             self._set_status(
