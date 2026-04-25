@@ -2,11 +2,11 @@
 
 ## North Star
 
-Entregar um aplicativo desktop pequeno, confiavel e facil de manter para baixar videos da internet localmente, com opcao clara para extrair somente audio.
+Entregar um aplicativo desktop pequeno, confiavel e facil de manter para baixar uma ou varias URLs localmente, com opcao clara para salvar video completo ou extrair somente audio.
 
 ## Produto em Uma Frase
 
-"Colar URL, escolher formato, clicar e salvar sem complicacao."
+"Escolher formato, montar uma fila de URLs, acompanhar o progresso e salvar sem complicacao."
 
 ## Regras de Implementacao
 
@@ -22,17 +22,22 @@ Entregar um aplicativo desktop pequeno, confiavel e facil de manter para baixar 
 ### Interface
 
 - `tkinter` para janela principal
-- componentes simples: URL, tipo de download, pasta, botao, status
+- wizard em quatro etapas: formato, pasta, lista de URLs e revisao
+- fila visivel com status, progresso global e progresso por item
+- acoes finais simples: cancelar fila, abrir pasta e limpar itens concluidos
 
 ### Aplicacao
 
 - `app.py` para bootstrap
-- `ui/main_window.py` para a janela e eventos
+- `ui/main_window.py` para janela, eventos e orquestracao da fila
+- modulos pequenos em `ui/` para estado do wizard, mensagens, lista de URLs e resumo da revisao
 
 ### Servicos
 
-- futuro `services/download_service.py` para encapsular `yt-dlp`
-- futuro `services/file_service.py` para paths, nomes e pasta destino
+- `services/download_service.py` encapsula `yt-dlp`, formatos finais, binarios externos e progresso
+- `services/download_queue.py` modela os itens da fila
+- `services/settings_service.py` salva preferencias locais simples
+- `services/error_log.py` grava diagnostico local de falhas relevantes
 
 ## Fases
 
@@ -63,6 +68,17 @@ Entregar um aplicativo desktop pequeno, confiavel e facil de manter para baixar 
 - testes dos modulos principais
 - configuracoes persistentes simples
 - empacotamento para Windows
+
+## Estado Atual do Fluxo
+
+- wizard estruturado em etapas
+- suporte a multiplas URLs, incluindo colagem em lote
+- fila sequencial com status por item
+- execucao em thread separada para manter a UI responsiva
+- progresso em tempo real via `progress_hooks` do `yt-dlp`
+- tempo, velocidade e ETA quando disponiveis
+- cancelamento de fila, abertura da pasta final e limpeza de itens concluidos
+- requisitos locais documentados: `Node.js`, `ffmpeg` e `ffprobe`
 
 ## Definition of Done
 

@@ -342,10 +342,10 @@ Objetivo: melhorar controle e experiencia final.
   test: validacao automatizada do cancelamento da fila e `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pronto, aguardando autorizacao
 
-* [ ] Atualizar README e documentacao
-  dev: refletir nova arquitetura e fluxo
-  test: revisao manual
-  commit: pendente
+* [x] Atualizar README e documentacao
+  dev: `README.md` e `docs/VIBE_PLAN.md` atualizados para refletir wizard, fila, progresso em tempo real, acoes finais e requisitos locais atuais
+  test: revisao manual do conteudo e `.\.venv\Scripts\python.exe -m pytest -q`
+  commit: pronto, aguardando autorizacao
 
 ---
 
