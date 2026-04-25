@@ -332,10 +332,10 @@ Objetivo: melhorar controle e experiencia final.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
   commit: pronto, aguardando autorizacao
 
-* [ ] Limpar fila apos execucao
-  dev: remover itens concluidos
-  test: validacao da lista + pytest
-  commit: pendente
+* [x] Limpar fila apos execucao
+  dev: botao para limpar da interface os itens concluidos apos a execucao, mantendo itens com erro na fila e sem apagar arquivos baixados
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py` e `.\.venv\Scripts\python.exe -m pytest -q`
+  commit: pronto, aguardando autorizacao
 
 * [ ] Cancelar downloads em execucao
   dev: interromper fila com seguranca

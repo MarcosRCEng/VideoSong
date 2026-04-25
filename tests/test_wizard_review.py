@@ -236,6 +236,45 @@ def test_apply_download_event_refreshes_item_progress() -> None:
     assert window.status_var.get() == "Baixando item 1 de 1. 37.5%"
 
 
+def test_handle_clear_completed_items_keeps_errors_in_queue() -> None:
+    state = WizardState(
+        urls=[
+            "https://example.com/a",
+            "https://example.com/b",
+            "https://example.com/c",
+        ],
+        mode="video",
+        destination="C:/Downloads",
+        active_step_index=3,
+    )
+    queue = state.download_items
+    queue[0] = update_download_item(queue[0], status="completed")
+    queue[1] = update_download_item(queue[1], status="error", message="Falha mantida.")
+
+    window = MainWindow.__new__(MainWindow)
+    window.state = state
+    window.download_items = queue
+    window.urls_listbox = None
+    window.flow_var = FakeVar()
+    window.review_summary_var = FakeVar()
+    window.destination_label_var = FakeVar()
+    window.urls_label_var = FakeVar()
+    window.review_queue_frame = None
+    window.global_progress_label_var = FakeVar()
+    window.global_progress_bar = None
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    window.is_downloading = False
+
+    window._handle_clear_completed_items()
+
+    assert state.urls == ["https://example.com/b", "https://example.com/c"]
+    assert [item.url for item in window.download_items] == ["https://example.com/b", "https://example.com/c"]
+    assert [item.status for item in window.download_items] == ["error", "pending"]
+    assert window.can_clear_completed_items is False
+    assert window.status_var.get() == "1 item(ns) concluido(s) removido(s) da fila."
+
+
 def test_handle_next_blocks_advance_without_destination() -> None:
     window = MainWindow.__new__(MainWindow)
     window.state = WizardState(active_step_index=1)
