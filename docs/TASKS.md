@@ -327,10 +327,10 @@ Objetivo: melhorar controle e experiencia final.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
   commit: pronto, aguardando autorizacao
 
-* [ ] Melhorar mensagens de erro por item
-  dev: feedback claro por URL
-  test: simulacao de erro + pytest
-  commit: pendente
+* [x] Melhorar mensagens de erro por item
+  dev: mensagens de falha por item revisadas para orientar a acao do usuario sem expor detalhes tecnicos brutos
+  test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py`
+  commit: pronto, aguardando autorizacao
 
 * [ ] Limpar fila apos execucao
   dev: remover itens concluidos

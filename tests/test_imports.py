@@ -870,7 +870,8 @@ def test_start_download_returns_error_when_ytdlp_fails(mock_ytdl: MagicMock, _mo
                 status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "error"
-    assert "falha simulada" in message
+    assert "erro inesperado" in message
+    assert "falha simulada" not in message
     assert "videosong-errors.log" in message.replace("\\", "/")
 
 
@@ -885,7 +886,27 @@ def test_start_download_logs_download_error(mock_ytdl: MagicMock, _mock_mkdir: M
                 status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
 
     assert status_kind == "error"
-    assert "erro do yt-dlp" in message
+    assert "Nao foi possivel baixar este item" in message
+    assert "Verifique se a URL esta correta" in message
+    assert "erro do yt-dlp" not in message
+    assert "videosong-errors.log" in message.replace("\\", "/")
+    mock_log.assert_called_once()
+
+
+@patch("src.videosong.services.download_service.Path.mkdir", side_effect=OSError("acesso negado"))
+def test_start_download_returns_actionable_message_when_destination_fails(_mock_mkdir: MagicMock) -> None:
+    with patch("src.videosong.services.download_service.find_js_runtime_options", return_value={}):
+        with patch("src.videosong.services.download_service.find_ffmpeg_location", return_value="C:/ffmpeg/bin"):
+            with patch(
+                "src.videosong.services.download_service.write_error_log",
+                return_value=Path("logs/videosong-errors.log"),
+            ) as mock_log:
+                status_kind, message = start_download("https://example.com/watch?v=123", "video", "C:/Downloads")
+
+    assert status_kind == "error"
+    assert "Nao foi possivel preparar a pasta de destino deste item" in message
+    assert "permissao para gravar" in message
+    assert "acesso negado" not in message
     assert "videosong-errors.log" in message.replace("\\", "/")
     mock_log.assert_called_once()
 

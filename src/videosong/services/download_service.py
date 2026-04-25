@@ -252,6 +252,10 @@ def build_download_options(
     return options
 
 
+def _build_log_reference(log_file: Path) -> str:
+    return f"Detalhes tecnicos foram salvos no log em {log_file}."
+
+
 def start_download(
     url: str,
     mode: str,
@@ -288,12 +292,33 @@ def start_download(
             downloader.download([clean_url])
     except DownloadError as error:
         log_file = write_error_log("Falha de download retornada pelo yt-dlp.", error)
-        return ("error", f"Erro ao baixar {clean_mode}: {error} Consulte o log em {log_file}.")
+        return (
+            "error",
+            (
+                "Nao foi possivel baixar este item. Verifique se a URL esta correta, "
+                "se o video esta disponivel e tente novamente. "
+                f"{_build_log_reference(log_file)}"
+            ),
+        )
     except OSError as error:
         log_file = write_error_log("Falha ao preparar a pasta de destino.", error)
-        return ("error", f"Erro ao preparar a pasta de destino: {error} Consulte o log em {log_file}.")
+        return (
+            "error",
+            (
+                "Nao foi possivel preparar a pasta de destino deste item. "
+                "Verifique se a pasta existe e se o aplicativo tem permissao para gravar nela. "
+                f"{_build_log_reference(log_file)}"
+            ),
+        )
     except Exception as error:
         log_file = write_error_log("Falha inesperada durante o download.", error)
-        return ("error", f"Erro inesperado durante o download: {error} Consulte o log em {log_file}.")
+        return (
+            "error",
+            (
+                "O download deste item falhou por um erro inesperado. "
+                "Tente novamente; se o problema continuar, consulte o log local. "
+                f"{_build_log_reference(log_file)}"
+            ),
+        )
 
     return ("success", f"Download concluido com sucesso em {clean_destination}.")
