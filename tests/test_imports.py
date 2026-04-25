@@ -1,6 +1,7 @@
 import os
 from queue import Queue
 from pathlib import Path
+from threading import Event
 from unittest.mock import MagicMock, patch
 
 from src.videosong.app import run
@@ -664,7 +665,7 @@ def test_update_download_item_uses_default_message_for_status() -> None:
 
 
 def test_download_item_statuses_are_exposed() -> None:
-    assert DOWNLOAD_ITEM_STATUSES == ("pending", "running", "completed", "error")
+    assert DOWNLOAD_ITEM_STATUSES == ("pending", "running", "completed", "error", "canceled")
 
 
 def test_update_download_item_rejects_invalid_status() -> None:
@@ -1033,6 +1034,42 @@ def test_worker_events_update_queue_and_finish_download(monkeypatch) -> None:
     assert window.status_var.get() == "Fila finalizada com 1 item(ns) concluido(s) e 1 com erro."
     assert "1. https://example.com/first | Concluido | primeiro concluido" in window.review_summary_var.get()
     assert "2. https://example.com/second | Erro | segundo falhou" in window.review_summary_var.get()
+
+
+def test_worker_cancels_pending_items_after_current_download(monkeypatch) -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.state = WizardState(
+        urls=["https://example.com/first", "https://example.com/second", "https://example.com/third"]
+    )
+    window.download_items = window.state.download_items
+    window.download_events = Queue()
+    window.is_downloading = True
+    window.root = FakeRoot()
+    window.review_summary_var = FakeVar()
+    window.status_var = FakeVar()
+    window.status_label = FakeLabel()
+    window.open_destination_button = FakeButton()
+    window.cancel_download_button = FakeButton()
+    cancel_event = Event()
+    captured: list[str] = []
+
+    def fake_start_download(url: str, mode: str, destination: str, progress_callback=None) -> tuple[str, str]:
+        del mode, destination, progress_callback
+        captured.append(url)
+        cancel_event.set()
+        return ("success", "primeiro concluido")
+
+    monkeypatch.setattr(main_window, "start_download", fake_start_download)
+
+    window._run_download_queue_worker(list(window.download_items), cancel_event)
+    window._poll_download_events()
+
+    assert captured == ["https://example.com/first"]
+    assert [item.status for item in window.download_items] == ["completed", "canceled", "canceled"]
+    assert window.is_downloading is False
+    assert window.cancel_download_button.visible is False
+    assert "2. https://example.com/second | Cancelado | Cancelado antes de iniciar." in window.review_summary_var.get()
+    assert window.status_var.get() == "Fila cancelada com 1 item(ns) concluido(s), 0 com erro e 2 cancelado(s)."
 
 
 def test_worker_applies_progress_callback_to_current_item(monkeypatch) -> None:

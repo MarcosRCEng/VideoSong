@@ -337,10 +337,10 @@ Objetivo: melhorar controle e experiencia final.
   test: `.\.venv\Scripts\python.exe -m pytest -q tests/test_imports.py tests/test_wizard_review.py` e `.\.venv\Scripts\python.exe -m pytest -q`
   commit: pronto, aguardando autorizacao
 
-* [ ] Cancelar downloads em execucao
-  dev: interromper fila com seguranca
-  test: validacao de cancelamento + pytest
-  commit: pendente
+* [x] Cancelar downloads em execucao
+  dev: botao simples para solicitar cancelamento da fila em execucao; o item atual termina com seguranca e os proximos itens sao marcados como cancelados sem iniciar novos downloads
+  test: validacao automatizada do cancelamento da fila e `.\.venv\Scripts\python.exe -m pytest -q`
+  commit: pronto, aguardando autorizacao
 
 * [ ] Atualizar README e documentacao
   dev: refletir nova arquitetura e fluxo

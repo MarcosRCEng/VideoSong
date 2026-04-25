@@ -2,7 +2,7 @@ import os
 import tkinter as tk
 from queue import Empty, Queue
 from collections.abc import Callable
-from threading import Thread
+from threading import Event, Thread
 from types import TracebackType
 from tkinter import END, filedialog, ttk
 
@@ -80,6 +80,7 @@ class MainWindow:
         self.is_downloading = False
         self.download_events: Queue[dict[str, object]] = Queue()
         self.download_thread: Thread | None = None
+        self.cancel_download_requested = Event()
         self.can_open_destination = False
         self.can_clear_completed_items = False
         self.urls_listbox: tk.Listbox | None = None
@@ -154,19 +155,26 @@ class MainWindow:
         self.next_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.download_button = ttk.Button(navigation, text="Iniciar download", command=self._handle_download)
         self.download_button.grid(row=0, column=3, sticky="e")
+        self.cancel_download_button = ttk.Button(
+            navigation,
+            text="Cancelar fila",
+            command=self._handle_cancel_download,
+        )
+        self.cancel_download_button.grid(row=0, column=4, sticky="e", padx=(8, 0))
+        self.cancel_download_button.grid_remove()
         self.open_destination_button = ttk.Button(
             navigation,
             text="Abrir pasta",
             command=self._handle_open_destination,
         )
-        self.open_destination_button.grid(row=0, column=4, sticky="e", padx=(8, 0))
+        self.open_destination_button.grid(row=0, column=5, sticky="e", padx=(8, 0))
         self.open_destination_button.grid_remove()
         self.clear_completed_button = ttk.Button(
             navigation,
             text="Limpar concluidos",
             command=self._handle_clear_completed_items,
         )
-        self.clear_completed_button.grid(row=0, column=5, sticky="e", padx=(8, 0))
+        self.clear_completed_button.grid(row=0, column=6, sticky="e", padx=(8, 0))
         self.clear_completed_button.grid_remove()
 
         ttk.Separator(container, orient="horizontal").grid(row=7, column=0, sticky="ew", pady=16)
@@ -421,6 +429,7 @@ class MainWindow:
         back_button = getattr(self, "back_button", None)
         next_button = getattr(self, "next_button", None)
         download_button = getattr(self, "download_button", None)
+        cancel_download_button = getattr(self, "cancel_download_button", None)
 
         if getattr(self, "is_downloading", False):
             if back_button is not None:
@@ -429,6 +438,10 @@ class MainWindow:
                 next_button.configure(state="disabled")
             if download_button is not None:
                 download_button.configure(state="disabled")
+            if cancel_download_button is not None:
+                cancel_event = getattr(self, "cancel_download_requested", None)
+                cancel_state = "disabled" if cancel_event is not None and cancel_event.is_set() else "normal"
+                cancel_download_button.configure(state=cancel_state)
             return
 
         if back_button is not None:
@@ -439,6 +452,8 @@ class MainWindow:
             )
         if download_button is not None:
             download_button.configure(state="normal" if self.state.active_step.key == "review" else "disabled")
+        if cancel_download_button is not None:
+            cancel_download_button.configure(state="disabled")
 
     def _update_editable_controls(self) -> None:
         state = "disabled" if getattr(self, "is_downloading", False) else "normal"
@@ -471,6 +486,18 @@ class MainWindow:
             return
 
         clear_completed_button.grid_remove()
+
+    def _set_cancel_download_button_visible(self, is_visible: bool) -> None:
+        cancel_download_button = getattr(self, "cancel_download_button", None)
+
+        if cancel_download_button is None:
+            return
+
+        if is_visible:
+            cancel_download_button.grid()
+            return
+
+        cancel_download_button.grid_remove()
 
     def _handle_back(self) -> None:
         if getattr(self, "is_downloading", False):
@@ -610,6 +637,17 @@ class MainWindow:
         self._set_clear_completed_button_visible(False)
         self._set_status("success", f"{removed_count} item(ns) concluido(s) removido(s) da fila.")
 
+    def _handle_cancel_download(self) -> None:
+        if not getattr(self, "is_downloading", False):
+            return
+
+        self.cancel_download_requested.set()
+        self._update_navigation_buttons()
+        self._set_status(
+            "neutral",
+            "Cancelamento solicitado. O item atual sera finalizado e os proximos nao serao iniciados.",
+        )
+
     def _set_status(self, status_kind: str, message: str) -> None:
         colors = {
             "neutral": "#1f1f1f",
@@ -645,23 +683,34 @@ class MainWindow:
 
         self._set_open_destination_button_visible(False)
         self._set_clear_completed_button_visible(False)
+        self._set_cancel_download_button_visible(True)
         self._refresh_download_items()
         self.is_downloading = True
+        if not hasattr(self, "cancel_download_requested"):
+            self.cancel_download_requested = Event()
+        self.cancel_download_requested.clear()
         self._update_navigation_buttons()
         self._update_editable_controls()
         self.download_events = Queue()
         self.download_thread = Thread(
             target=self._run_download_queue_worker,
-            args=(list(self.download_items),),
+            args=(list(self.download_items), self.cancel_download_requested),
             daemon=True,
         )
         self.download_thread.start()
         self._poll_download_events()
 
-    def _run_download_queue_worker(self, queue: list[DownloadItem]) -> None:
+    def _run_download_queue_worker(self, queue: list[DownloadItem], cancel_event: Event | None = None) -> None:
         has_errors = False
+        was_canceled = False
+        cancel_event = cancel_event or Event()
 
         for index, item in enumerate(queue):
+            if cancel_event.is_set():
+                was_canceled = True
+                self._cancel_pending_queue_items(queue, index)
+                break
+
             current_item = update_download_item(
                 item,
                 status="running",
@@ -732,14 +781,37 @@ class MainWindow:
                 }
             )
 
+            if cancel_event.is_set():
+                was_canceled = True
+
         self.download_events.put(
             {
                 "type": "done",
                 "completed_count": sum(1 for item in queue if item.status == "completed"),
                 "error_count": sum(1 for item in queue if item.status == "error"),
+                "canceled_count": sum(1 for item in queue if item.status == "canceled"),
                 "has_errors": has_errors,
+                "canceled": was_canceled,
             }
         )
+
+    def _cancel_pending_queue_items(self, queue: list[DownloadItem], start_index: int) -> None:
+        for index in range(start_index, len(queue)):
+            canceled_item = update_download_item(
+                queue[index],
+                status="canceled",
+                message="Cancelado antes de iniciar.",
+                progress_percent=100.0,
+            )
+            queue[index] = canceled_item
+            self.download_events.put(
+                {
+                    "type": "item",
+                    "index": index,
+                    "item": canceled_item,
+                    "status_kind": "neutral",
+                }
+            )
 
     def _build_progress_message(self, index: int, total: int, progress: DownloadProgress) -> str:
         parts = [f"Baixando item {index + 1} de {total}."]
@@ -783,13 +855,26 @@ class MainWindow:
 
         completed_count = int(event.get("completed_count", 0))
         error_count = int(event.get("error_count", 0))
+        canceled_count = int(event.get("canceled_count", 0))
         has_errors = bool(event.get("has_errors", False))
+        was_canceled = bool(event.get("canceled", False))
         self.is_downloading = False
         self.download_thread = None
         self._update_navigation_buttons()
         self._update_editable_controls()
+        self._set_cancel_download_button_visible(False)
         self._set_open_destination_button_visible(True)
         self._set_clear_completed_button_visible(completed_count > 0)
+
+        if was_canceled:
+            self._set_status(
+                "neutral",
+                (
+                    f"Fila cancelada com {completed_count} item(ns) concluido(s), "
+                    f"{error_count} com erro e {canceled_count} cancelado(s)."
+                ),
+            )
+            return
 
         if has_errors:
             self._set_status(
